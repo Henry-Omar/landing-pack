@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>留学生落地包 · App</title>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body class="app">
+  <div class="grid-bg"></div>
+  <header class="topbar">
+    <div class="brand">
+      <span class="logo-mark">◈</span>
+      <span class="logo-text">留学生落地包</span>
+    </div>
+    <div class="top-right">
+      <span id="who" class="who"></span>
+      <span id="verifyTag" class="verify-tag hidden" data-i18n="unverified">未验证 · 去验证</span>
+      <div class="lang">
+        <button id="langZh" class="lang-btn active">中文</button>
+        <button id="langEn" class="lang-btn">EN</button>
+      </div>
+      <button id="logout" class="btn-ghost sm" data-i18n="logout">退出</button>
+    </div>
+  </header>
+
+  <main id="view-check" class="view active">
+    <h2 data-i18n="check_title">行前落地清单</h2>
+    <p class="sub" data-i18n="check_sub">勾选你已完成的事项，出发前不漏项。</p>
+    <div class="dest-sel"><label data-i18n="dest_label">目的地</label> <select id="destSel"></select></div>
+    <div id="checkList"></div>
+    <div id="checkProgress" class="progress"></div>
+  </main>
+
+  <main id="view-guide" class="view">
+    <h2 data-i18n="guide_title">城市生存指南</h2>
+    <div id="cityTabs" class="city-tabs"></div>
+    <div id="wikiList" class="wiki-list"></div>
+  </main>
+
+  <main id="view-qa" class="view">
+    <h2 data-i18n="qa_title">同校前辈问答</h2>
+    <div class="qa-filter">
+      <select id="qaLang">
+        <option value="all" data-i18n="qa_all">全部</option>
+        <option value="zh">中文</option>
+        <option value="en">English</option>
+      </select>
+      <button id="qaNew" class="primary small" data-i18n="qa_ask">我要提问</button>
+    </div>
+    <div id="qaList" class="qa-list"></div>
+    <div id="qaForm" class="qa-form hidden">
+      <select id="qaFormLang"><option value="zh">中文</option><option value="en">English</option></select>
+      <input id="qaFormTitle" type="text" placeholder="标题 / Title">
+      <textarea id="qaFormBody" placeholder="详细描述你的问题 / Describe your question"></textarea>
+      <button id="qaFormSubmit" class="primary" data-i18n="qa_submit">发布</button>
+    </div>
+  </div>
+
+  <div id="view-tpl" class="view">
+    <h2 data-i18n="tpl_title">文档模板</h2>
+    <p class="sub" data-i18n="tpl_sub">中英双语，点击复制。</p>
+    <div id="tplList"></div>
+  </div>
+
+  <nav class="tabbar">
+    <button class="tab active" data-view="check">✅ <span data-i18n="tab_check">清单</span></button>
+    <button class="tab" data-view="guide">🗺 <span data-i18n="tab_guide">指南</span></button>
+    <button class="tab" data-view="qa">💬 <span data-i18n="tab_qa">问答</span></button>
+    <button class="tab" data-view="tpl">📄 <span data-i18n="tab_tpl">模板</span></button>
+  </nav>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>

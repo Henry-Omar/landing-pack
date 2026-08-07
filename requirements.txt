@@ -1,0 +1,2 @@
+# 留学生落地包 (Landing Pack) is stdlib-only — no pip dependencies required.
+# This file exists so PaaS buildpacks (Heroku, Render, Railway) detect Python.

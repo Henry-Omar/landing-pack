@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>留学生落地包 · Landing Pack</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body class="home">
+  <div class="grid-bg"></div>
+  <div class="glow glow-a"></div>
+  <div class="glow glow-b"></div>
+  <div class="orb"></div>
+
+  <header class="nav">
+    <div class="brand">
+      <span class="logo-mark">◈</span>
+      <span class="logo-text">留学生落地包</span>
+      <span class="logo-sub">Landing Pack</span>
+    </div>
+    <div class="nav-right">
+      <div class="lang">
+        <button id="langZh" class="lang-btn active">中文</button>
+        <button id="langEn" class="lang-btn">EN</button>
+      </div>
+      <button id="openAuth" class="btn-ghost" data-i18n="nav_enter">进入 / Enter</button>
+    </div>
+  </header>
+
+  <main class="hero">
+    <div class="badge" data-i18n="badge">为留学生打造的落地指南</div>
+    <h1 class="title">
+      <span data-i18n="hero_1">一个人出发，</span><br>
+      <span class="accent" data-i18n="hero_2">不一个人落地。</span>
+    </h1>
+    <p class="lede" data-i18n="hero_lede">
+      行前清单、城市生存指南、同校前辈问答 —— 中英双语，专为出海留学的你准备。
+    </p>
+    <div class="hero-cta">
+      <button id="ctaStart" class="btn-primary" data-i18n="cta_start">免费开始</button>
+      <button id="ctaTour" class="btn-line" data-i18n="cta_tour">看看功能</button>
+    </div>
+    <div class="stats">
+      <div class="stat"><b>5</b><span data-i18n="stat_cities">留学城市</span></div>
+      <div class="stat"><b>12</b><span data-i18n="stat_tasks">落地事项</span></div>
+      <div class="stat"><b>2</b><span data-i18n="stat_langs">语言</span></div>
+    </div>
+  </main>
+
+  <section class="features" id="features">
+    <div class="feat">
+      <div class="feat-ic">✅</div>
+      <h3 data-i18n="f1_t">行前落地清单</h3>
+      <p data-i18n="f1_d">签证、住宿、银行、保险，逐项勾选，出发前不漏项。</p>
+    </div>
+    <div class="feat">
+      <div class="feat-ic">🗺</div>
+      <h3 data-i18n="f2_t">城市生存指南</h3>
+      <p data-i18n="f2_d">伦敦、纽约、悉尼、多伦多、东京的住宿 / 交通 / 银行攻略。</p>
+    </div>
+    <div class="feat">
+      <div class="feat-ic">💬</div>
+      <h3 data-i18n="f3_t">同校前辈问答</h3>
+      <p data-i18n="f3_d">真实问题，真实回答。中文 / English 自由切换。</p>
+    </div>
+  </section>
+
+  <section class="steps">
+    <h2 data-i18n="step_t">三步落地</h2>
+    <div class="step"><div class="num">1</div><div><h3 data-i18n="s1_t">注册账户</h3><p data-i18n="s1_d">30 秒创建，免费、无需邮箱即可体验。</p></div></div>
+    <div class="step"><div class="num">2</div><div><h3 data-i18n="s2_t">勾选清单</h3><p data-i18n="s2_d">签证、住宿、银行、保险逐项勾选，进度一目了然。</p></div></div>
+    <div class="step"><div class="num">3</div><div><h3 data-i18n="s3_t">看指南 · 问前辈</h3><p data-i18n="s3_d">五大城市攻略 + 同校前辈真实问答。</p></div></div>
+  </section>
+
+  <section class="quotes">
+    <h2 data-i18n="q_t">他们在海外落地了</h2>
+    <div class="quote"><p data-i18n="q1">"落地包把我到伦敦前三周的焦虑全清空了，清单一条条打钩特别踏实。"</p><div class="qa" data-i18n="q1a">— 伦敦 · 硕士</div></div>
+    <div class="quote"><p data-i18n="q2">"前辈问答里有人说 BRP 还没到也能先开账户，省了我一周。"</p><div class="qa" data-i18n="q2a">— 纽约 · 本科</div></div>
+    <div class="quote"><p data-i18n="q3">"中英双语太友好了，我妈也能帮我看清单。"</p><div class="qa" data-i18n="q3a">— 悉尼 · 预科</div></div>
+  </section>
+
+  <section class="cta-foot">
+    <h2 data-i18n="ctaf_t">准备好落地了吗？</h2>
+    <p data-i18n="ctaf_d">加入上千名出海留学生，让第一步更稳。</p>
+    <button id="ctaStart2" class="btn-primary" data-i18n="ctaf_btn">免费开始</button>
+  </section>
+
+  <footer class="foot">
+    <span>◈ Landing Pack</span>
+    <span data-i18n="foot_txt">留学生出海第一步</span>
+  </footer>
+
+  <!-- Auth modal -->
+  <div id="authModal" class="modal hidden">
+    <div class="modal-card">
+      <button id="closeAuth" class="modal-x">×</button>
+      <div class="modal-tabs">
+        <button id="tabLogin" class="mtab active" data-i18n="tab_login">登录</button>
+        <button id="tabReg" class="mtab" data-i18n="tab_reg">注册</button>
+      </div>
+
+      <form id="loginForm" class="auth-form">
+        <label data-i18n="lbl_user">用户名或邮箱</label>
+        <input id="liIdent" type="text" autocomplete="username" placeholder="username / email">
+        <label data-i18n="lbl_pw">密码</label>
+        <input id="liPw" type="password" autocomplete="current-password" placeholder="••••••">
+        <div id="liErr" class="err"></div>
+        <button type="submit" class="btn-primary full" data-i18n="btn_login">登录</button>
+        <div class="alt"><a id="toForgot" href="#" data-i18n="forgot">忘记密码？</a></div>
+      </form>
+
+      <form id="regForm" class="auth-form hidden">
+        <label data-i18n="lbl_user">用户名</label>
+        <input id="rgUser" type="text" autocomplete="username" placeholder="nickname">
+        <label data-i18n="lbl_email">邮箱（可选）</label>
+        <input id="rgEmail" type="email" autocomplete="email" placeholder="you@example.com">
+        <label data-i18n="lbl_pw">密码（至少 6 位）</label>
+        <input id="rgPw" type="password" autocomplete="new-password" placeholder="••••••">
+        <div id="rgErr" class="err"></div>
+        <button type="submit" class="btn-primary full" data-i18n="btn_reg">创建账户</button>
+      </form>
+
+      <form id="forgotForm" class="auth-form hidden">
+        <label data-i18n="lbl_user">用户名或邮箱</label>
+        <input id="foIdent" type="text" autocomplete="username" placeholder="username / email">
+        <button type="submit" class="btn-primary full" data-i18n="btn_reset">发送重置链接</button>
+      </form>
+
+      <form id="resetForm" class="auth-form hidden">
+        <label data-i18n="lbl_newpw">新密码（至少 6 位）</label>
+        <input id="rsPw" type="password" autocomplete="new-password" placeholder="••••••">
+        <div id="rsMsg" class="ok"></div>
+        <button type="submit" class="btn-primary full" data-i18n="btn_setpw">设置新密码</button>
+      </form>
+
+      <div id="authOk" class="auth-ok hidden">
+        <p id="authOkMsg"></p>
+        <div id="authOkLink" class="ok"></div>
+        <button id="authOkGo" class="btn-primary full">进入应用 →</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="/static/home.js"></script>
+</body>
+</html>
