@@ -10,6 +10,7 @@ import sqlite3
 import hashlib
 import hmac
 import secrets
+import time
 from urllib.parse import urlparse, parse_qs
 
 # ---- Payment provider config (deploy: set env vars; local/dev uses mock) ----
@@ -20,6 +21,22 @@ STRIPE_WEBHOOK_SECRET = os.environ.get("STRIPE_WEBHOOK_SECRET", "")
 APP_BASE_URL = os.environ.get("APP_BASE_URL", "http://localhost:8000")
 
 DB = os.path.join(os.environ.get("DATA_DIR", os.path.dirname(__file__)), "landing.db")
+
+# In-memory login rate limit: IP -> list of failed timestamps. Cheap, no extra deps.
+LOGIN_FAILS = {}  # ip -> [unix_ts, ...]
+
+def _login_blocked(ip):
+    now = time.time()
+    fails = LOGIN_FAILS.get(ip, [])
+    fails = [t for t in fails if now - t < 300]  # keep last 5 min
+    LOGIN_FAILS[ip] = fails
+    return len(fails) >= 8  # block after 8 failures / 5 min
+
+def _login_fail(ip):
+    LOGIN_FAILS.setdefault(ip, []).append(time.time())
+
+def _login_ok(ip):
+    LOGIN_FAILS.pop(ip, None)
 
 CHECKLIST = [
     ("Visa", "签证", "Apply for student visa", "申请学生签证"),
@@ -457,8 +474,12 @@ class H(http.server.BaseHTTPRequestHandler):
             self._static(os.path.join(os.path.dirname(__file__), "static", "index.html"), ".html")
             return
         if p.path.startswith("/static/"):
-            fp = os.path.join(os.path.dirname(__file__), p.path.lstrip("/"))
-            if os.path.exists(fp):
+            # Prevent path traversal: only serve files inside ./static, no ".."
+            rel = p.path[len("/static/"):]
+            if ".." in rel or rel.startswith("/"):
+                self._j({"error": "nf"}); return
+            fp = os.path.join(os.path.dirname(__file__), "static", rel)
+            if os.path.isfile(fp) and os.path.abspath(fp).startswith(os.path.abspath(os.path.join(os.path.dirname(__file__), "static"))):
                 self._static(fp, os.path.splitext(fp)[1].lower())
             else:
                 self._j({"error": "nf"})
@@ -583,11 +604,16 @@ class H(http.server.BaseHTTPRequestHandler):
             c.commit(); c.close()
             self._j({"uid": uid, "name": name, "lang": lang}); return
         if p.path == "/api/login":
+            ip = self.client_address[0]
+            if _login_blocked(ip):
+                self._j({"error": "too_many"}); return
             email = (b.get("email") or "").strip().lower()
             pw = b.get("password") or ""
             c = db(); u = c.execute("SELECT id,name,lang,password FROM users WHERE email=?", (email,)).fetchone(); c.close()
             if not u or not verify_pw(pw, u["password"]):
+                _login_fail(ip)
                 self._j({"error": "bad"}); return
+            _login_ok(ip)
             self._j({"uid": u["id"], "name": u["name"], "lang": u["lang"]}); return
         if p.path == "/api/profile":
             uid = b.get("uid"); name = b.get("name", ""); lang = b.get("lang", "zh")
