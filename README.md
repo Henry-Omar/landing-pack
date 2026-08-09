@@ -67,9 +67,9 @@ restarts. Set `APP_BASE_URL` to the public URL before enabling Stripe.
 1. `pip install stripe` (uncomment in `requirements.txt`)
 2. Set `PAYMENT_PROVIDER=stripe` and `STRIPE_SECRET_KEY=sk_live_...`
 3. Restart. `/api/buy_kit` then returns a `checkout_url` the app redirects to.
-
-> Note: a Stripe **webhook** to flip `pending`→`paid` and auto-unlock kits is the
-> next hardening step. The mock path unlocks instantly for local/dev.
+4. Add a **webhook endpoint** in Stripe pointing to `https://YOUR_DOMAIN/api/stripe_webhook`
+   with the signing secret set as `STRIPE_WEBHOOK_SECRET`. On `checkout.session.completed`
+   the matching `pending` order flips to `paid` and the kit unlocks automatically.
 
 ## Health check
 

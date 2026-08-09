@@ -8,6 +8,7 @@ import json
 import os
 import sqlite3
 import hashlib
+import hmac
 import secrets
 from urllib.parse import urlparse, parse_qs
 
@@ -15,6 +16,7 @@ from urllib.parse import urlparse, parse_qs
 PAYMENT_PROVIDER = os.environ.get("PAYMENT_PROVIDER", "mock")  # "mock" | "stripe"
 STRIPE_SECRET_KEY = os.environ.get("STRIPE_SECRET_KEY", "")
 STRIPE_PUBLISHABLE_KEY = os.environ.get("STRIPE_PUBLISHABLE_KEY", "")
+STRIPE_WEBHOOK_SECRET = os.environ.get("STRIPE_WEBHOOK_SECRET", "")
 APP_BASE_URL = os.environ.get("APP_BASE_URL", "http://localhost:8000")
 
 DB = os.path.join(os.environ.get("DATA_DIR", os.path.dirname(__file__)), "landing.db")
@@ -45,6 +47,12 @@ WIKI = {
         ("Bank", "银行", "Common banks", "常见银行",
          "Barclays, HSBC, Lloyds are intl-student friendly; bring passport, BRP, offer letter, proof of address.",
          "Barclays、HSBC、Lloyds 对中国留学生较友好，需护照、BRP、录取信、住址证明。"),
+        ("SIM", "手机", "SIM / eSIM", "手机卡",
+         "Get a Pay As You Go SIM (EE, O2, Vodafone) or an eSIM (Airalo) on arrival; a UK number helps with rentals and GP.",
+         "落地办 Pay As You Go 卡（EE、O2、Vodafone）或 eSIM（Airalo）；本地号码方便租房和注册 GP。"),
+        ("Food", "饮食", "Groceries & eating", "超市与吃饭",
+         "Tesco, Sainsbury's and Lidl are cheap; student discounts via UNiDAYS. A rice cooker is worth bringing.",
+         "Tesco、Sainsbury's、Lidl 较便宜；用 UNiDAYS 享学生折扣。电饭煲建议自带。"),
     ],
     "New York": [
         ("Housing", "住宿", "Dorms vs off-campus", "宿舍与校外租房",
@@ -56,6 +64,12 @@ WIKI = {
         ("Bank", "银行", "Opening an account", "开户",
          "Chase and BofA have many branches; bring passport, I-20, address; some ask for SSN/ITIN.",
          "Chase、Bank of America 网点多；国际学生需护照、I-20、住址与部分银行要 SSN/ITIN。"),
+        ("SIM", "手机", "Carriers", "手机卡",
+         "T-Mobile and Mint Mobile have cheap student plans; an eSIM works on most phones. No contract needed.",
+         "T-Mobile、Mint Mobile 有便宜学生套餐；多数手机支持 eSIM，无需合约。"),
+        ("Work", "打工", "On-campus jobs", "校内打工",
+         "F-1 students may work on campus up to 20h/week; get an SSN first. CPT/OPT needed for off-campus internships.",
+         "F-1 学生校内每周最多 20 小时；先办 SSN。校外实习需 CPT/OPT。"),
     ],
     "Sydney": [
         ("Housing", "住宿", "Renting", "租房",
@@ -67,6 +81,12 @@ WIKI = {
         ("Bank", "银行", "Big four banks", "四大行",
          "CBA, Westpac, ANZ, NAB are student-friendly; bring passport, CoE, address.",
          "Commonwealth、Westpac、ANZ、NAB 对中国学生友好，需护照、COE、住址。"),
+        ("SIM", "手机", "Telcos", "手机卡",
+         "Optus and Telstra have student plans; eSIM supported. Activate after arrival with your passport.",
+         "Optus、Telstra 有学生套餐，支持 eSIM；落地凭护照开通。"),
+        ("Work", "打工", "Work rights", "打工权限",
+         "Student visa allows 48h/fortnight; get a TFN to avoid top tax rate. Pay slips are mandatory.",
+         "学生签每两周 48 小时；办 TFN 避免高税率。务必索取工资单。"),
     ],
     "Toronto": [
         ("Housing", "住宿", "Renting", "租房",
@@ -78,6 +98,12 @@ WIKI = {
         ("Bank", "银行", "Opening an account", "开户",
          "RBC, TD, Scotiabank welcome intl students; bring passport, study permit, address proof.",
          "RBC、TD、Scotiabank 国际学生友好，需护照、学签、住址证明。"),
+        ("SIM", "手机", "Carriers", "手机卡",
+         "Rogers, Bell and Freedom Mobile cover students; bring passport + study permit to activate.",
+         "Rogers、Bell、Freedom Mobile 覆盖好；凭护照+学签开通。"),
+        ("Winter", "过冬", "Cold-weather prep", "过冬准备",
+         "Winter drops to -20°C; a down jacket, thermal layers and winter boots are essential. Indoors are well heated.",
+         "冬季可达 -20°C；羽绒服、保暖层与雪地靴必备。室内暖气充足。"),
     ],
     "Tokyo": [
         ("Housing", "住宿", "Dorms vs apartments", "宿舍与租房",
@@ -89,6 +115,12 @@ WIKI = {
         ("Bank", "银行", "Opening an account", "开户",
          "Japan Post or MUFG are easier; bring residence card, student ID, address. Some need Japanese support.",
          "邮局银行或三菱UFJ较易开户；需在留卡、学生证、住址。部分银行需日语对应。"),
+        ("SIM", "手机", "Carriers", "手机卡",
+         "Docomo, au and SoftBank have student discounts; an eSIM (povo, LINEMO) is contract-free and quick.",
+         "Docomo、au、SoftBank 有学生优惠；eSIM（povo、LINEMO）免合约、开通快。"),
+        ("Food", "饮食", "Daily life", "日常生活",
+         "Convenience stores and supermarkets are everywhere; a rice cooker and electric kettle make life easier.",
+         "便利店与超市遍地；电饭煲和电热水壶让生活更方便。"),
     ],
 }
 
@@ -196,6 +228,23 @@ KITS = [
      19, KIT2_EN, KIT2_ZH),
 ]
 
+# Seed Q&A (genuine bilingual content so the Q&A tab isn't empty on first run)
+QUESTIONS = [
+    ("zh", "英国学生签证要多久下来？", "我想9月入学，现在办签证还来得及吗？BRP还要不要领？"),
+    ("zh", "纽约租房押金一般要几个月？", "哥大附近一居室大概什么价位？有没有靠谱平台？"),
+    ("en", "How do I open a UK bank account as a new international student?", "Which banks are easiest and what documents do I need besides my passport?"),
+    ("en", "Sydney rental bond — where does it go?", "Is it normal for the landlord to hold the bond, or should it be lodged with the RTA?"),
+    ("zh", "东京租房的保证人怎么办？", "中国留学生没有日本亲友做保证人，能用保证公司吗？费用高吗？"),
+]
+ANSWERS = {
+    0: [("zh", "英国学生签通常3周出结果，优先签证(Priority)约5个工作日。BRP已逐步被eVisa取代，具体看你的签证决定信。", "Li Mei")],
+    1: [("zh", "纽约押金通常1个月，部分要求先付最后一个月租金。哥大附近studio约$3000-4000/月，可用 Streeteasy / Zillow 筛选。", "Zhang Wei")],
+    2: [("en", "Barclays, HSBC and Lloyds are intl-student friendly. Bring passport, BRP/eVisa, offer letter and proof of address (a uni letter works). Monzo/Starling are easy online alternatives.", "Li Mei")],
+    3: [("en", "In NSW the bond MUST be lodged with the RTA (Fair Trading), not held by the landlord. Get a receipt and do a condition report on move-in.", "Wang Fang")],
+    4: [("zh", "可以用保证公司（保証会社）代替亲友保证人，费用通常半个月到一个月租金，且多为一次性。入学后很多学校也有支援。", "Sato Yuki")],
+}
+
+
 MENTORS = [
     ("Li Mei", "UCL", "伦敦大学学院", "UCL 硕士，帮过30+学弟妹落地伦敦。", "UCL MSc, helped 30+ juniors land in London.", "签证/租房/银行", 99),
     ("Zhang Wei", "NYU", "纽约大学", "NYU 在校生，熟悉F1签证与纽约生活。", "NYU student, knows F1 visa & NYC life.", "签证/保险/社交", 89),
@@ -300,6 +349,31 @@ def verify_pw(pw, stored):
     return hashlib.pbkdf2_hmac("sha256", pw.encode(), salt.encode(), 100000).hex() == d
 
 
+def verify_stripe_sig(payload: bytes, sig_header: str, secret: str) -> dict:
+    """Verify a Stripe webhook signature using stdlib HMAC (no stripe SDK needed).
+    Returns the parsed event dict, or raises ValueError on bad signature."""
+    if not secret or not sig_header:
+        raise ValueError("missing secret or signature header")
+    parts = dict(kv.strip().split("=", 1) for kv in sig_header.split(",") if "=" in kv)
+    ts = parts.get("t")
+    v1 = parts.get("v1")
+    if not ts or not v1:
+        raise ValueError("malformed signature header")
+    signed = (ts + "." + payload.decode("utf-8")).encode("utf-8")
+    expected = hmac.new(secret.encode("utf-8"), signed, hashlib.sha256).hexdigest()
+    # constant-time compare
+    if not hmac.compare_digest(expected, v1):
+        raise ValueError("signature mismatch")
+    return json.loads(payload.decode("utf-8"))
+
+
+def fulfill_order(uid, kit_id):
+    """Flip a pending order to paid so the kit unlocks."""
+    c = db()
+    c.execute("UPDATE orders SET status='paid' WHERE user_id=? AND kit_id=? AND status='pending'", (uid, kit_id))
+    c.commit(); c.close()
+
+
 def init():
     c = db()
     c.executescript("""
@@ -336,6 +410,12 @@ def init():
         c.executemany("INSERT INTO kits(name_en,name_zh,desc_en,desc_zh,price,content_en,content_zh) VALUES(?,?,?,?,?,?,?)", KITS)
     if c.execute("SELECT COUNT(*) FROM mentors").fetchone()[0] == 0:
         c.executemany("INSERT INTO mentors(name,school_en,school_zh,bio_en,bio_zh,expertise,price) VALUES(?,?,?,?,?,?,?)", MENTORS)
+    if c.execute("SELECT COUNT(*) FROM questions").fetchone()[0] == 0:
+        for i, (lang, title, body) in enumerate(QUESTIONS):
+            cur = c.execute("INSERT INTO questions(user_id,name,lang,title,body) VALUES(?,?,?,?,?)", ("seed", "匿名", lang, title, body))
+            qid = cur.lastrowid
+            for alang, atext, aname in ANSWERS.get(i, []):
+                c.execute("INSERT INTO answers(q_id,name,lang,text) VALUES(?,?,?,?)", (qid, aname, alang, atext))
     try:
         c.execute("ALTER TABLE users ADD COLUMN school_id INTEGER")
     except Exception:
@@ -457,11 +537,35 @@ class H(http.server.BaseHTTPRequestHandler):
             c = db(); row = c.execute("SELECT note_en,note_zh FROM school_notes WHERE school_id=?", (sid,)).fetchone(); c.close()
             self._j({"note_en": row["note_en"] if row else "", "note_zh": row["note_zh"] if row else ""}); return
         if p.path == "/api/health":
-            self._j({"status": "ok", "provider": PAYMENT_PROVIDER, "stripe": bool(STRIPE_SECRET_KEY)}); return
+            self._j({"status": "ok", "provider": PAYMENT_PROVIDER, "stripe": bool(STRIPE_SECRET_KEY), "webhook": bool(STRIPE_WEBHOOK_SECRET)}); return
         self._j({"error": "unknown"})
 
     def do_POST(self):
         p = urlparse(self.path)
+        # Stripe webhook: needs the RAW body + signature header (no JSON pre-parse)
+        if p.path == "/api/stripe_webhook":
+            n = int(self.headers.get("Content-Length", 0))
+            raw = self.rfile.read(n) or b"{}"
+            sig = self.headers.get("Stripe-Signature", "")
+            if not STRIPE_WEBHOOK_SECRET:
+                self.send_response(200); self.send_header("Content-Type", "application/json"); self.end_headers()
+                self.wfile.write(json.dumps({"received": True, "note": "webhook secret not set"}).encode()); return
+            try:
+                event = verify_stripe_sig(raw, sig, STRIPE_WEBHOOK_SECRET)
+            except ValueError as e:
+                self.send_response(400); self.send_header("Content-Type", "application/json"); self.end_headers()
+                self.wfile.write(json.dumps({"error": "bad_signature", "detail": str(e)}).encode()); return
+            if event.get("type") == "checkout.session.completed":
+                sess = event["data"]["object"]
+                ref = sess.get("client_reference_id") or ""
+                if ":" in ref:
+                    uid, kit_id = ref.split(":", 1)
+                    try:
+                        fulfill_order(uid, int(kit_id))
+                    except Exception:
+                        pass
+            self.send_response(200); self.send_header("Content-Type", "application/json"); self.end_headers()
+            self.wfile.write(json.dumps({"received": True}).encode()); return
         n = int(self.headers.get("Content-Length", 0))
         b = json.loads(self.rfile.read(n) or b"{}")
         if p.path == "/api/register":

@@ -52,3 +52,20 @@ Proxy `/` → `http://127.0.0.1:8000`, set `HOST=127.0.0.1`, terminate TLS at th
 - **Railway:** uses `railway.json` + `Dockerfile`, same health check.
 - **Any Docker host / VPS:** `docker build -t landing-pack . && docker run -p 8000:8000 -v $(pwd)/data:/app landing-pack`.
 - Persist `landing.db` (mount a volume / disk) so users, orders, and progress survive restarts. Set `APP_BASE_URL` to the public URL before enabling Stripe.
+
+## Deploy on Render — step by step
+1. Go to https://dashboard.render.com → **New** → **Blueprint**.
+2. Connect your GitHub repo `Henry-Omar/landing-pack`.
+3. Render reads `render.yaml` and creates the `landing-pack` web service (free plan, Docker, health check `/api/health`).
+4. Click **Create Web Service**. Build + deploy takes ~1-2 min.
+5. Once live, open the URL. Click **Environment** and set:
+   - `APP_BASE_URL` = your Render URL (e.g. `https://landing-pack.onrender.com`)
+   - (later) `PAYMENT_PROVIDER=stripe` + `STRIPE_SECRET_KEY` + `STRIPE_WEBHOOK_SECRET`
+6. To keep data: **Disks** → attach a disk, mount path `/app/landing.db` (size 1 GB). The DB seeds itself on first boot.
+7. Health: `GET https://<your-url>/api/health` → `{"status":"ok",...}`.
+
+## Deploy on Railway — step by step
+1. https://railway.app → **New Project** → **Deploy from GitHub repo**.
+2. Pick `Henry-Omar/landing-pack`; Railway uses `railway.json` + `Dockerfile`.
+3. Set `APP_BASE_URL` in the Variables tab to the generated URL.
+4. Deploy. Health check is `/api/health`.
