@@ -1,5 +1,5 @@
 * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
-body { font-family: -apple-system, "PingFang SC", "Microsoft YaHei", "Segoe UI", sans-serif; background: #eef2f6; color: #1f2a36; max-width: 480px; margin: 0 auto; min-height: 100vh; padding-bottom: 64px; position: relative; }
+body { font-family: -apple-system, "PingFang SC", "Microsoft YaHei", "Segoe UI", sans-serif; background: #eef2f6; color: #1f2a36; max-width: 480px; margin: 0 auto; min-height: 100vh; padding-bottom: calc(64px + env(safe-area-inset-bottom, 0px)); position: relative; }
 .topbar { background: linear-gradient(135deg, #2b5876, #4e92c4); color: #fff; padding: 14px 18px; display: flex; align-items: center; justify-content: space-between; position: relative; z-index: 5; }
 .brand .logo { font-size: 19px; font-weight: 700; letter-spacing: 1px; }
 .brand .logo-en { font-size: 11px; opacity: .85; letter-spacing: 1px; }
@@ -24,7 +24,7 @@ body { font-family: -apple-system, "PingFang SC", "Microsoft YaHei", "Segoe UI",
 .auth-tabs { display: flex; gap: 8px; margin-bottom: 14px; }
 .auth-tabs button { flex: 1; padding: 11px; border: none; border-radius: 12px; background: rgba(255,255,255,.06); color: #9fb0c8; font-size: 14px; cursor: pointer; }
 .auth-tabs button.active { background: linear-gradient(135deg, #00e5ff, #7c5cff); color: #06121f; font-weight: 700; }
-#authForm input { width: 100%; padding: 13px; margin-bottom: 10px; border-radius: 12px; border: 1px solid rgba(255,255,255,.12); background: rgba(255,255,255,.05); color: #eaf6ff; font-size: 14px; }
+#authForm input { width: 100%; padding: 13px; margin-bottom: 10px; border-radius: 12px; border: 1px solid rgba(255,255,255,.12); background: rgba(255,255,255,.05); color: #eaf6ff; font-size: 16px; }
 #authForm input::placeholder { color: #7f93ad; }
 .primary { display: block; width: 100%; padding: 13px; background: #2b5876; color: #fff; border: none; border-radius: 12px; font-size: 15px; font-weight: 600; cursor: pointer; }
 .primary.glow { background: linear-gradient(135deg, #00e5ff, #7c5cff); color: #06121f; box-shadow: 0 8px 30px rgba(0,229,255,.4); }
@@ -65,7 +65,7 @@ h2 { font-size: 19px; margin-bottom: 4px; color: #1f3a52; }
 .qa-form { margin-top: 14px; background: #fff; border-radius: 12px; padding: 14px; }
 .qa-form select, .qa-form input, .qa-form textarea { width: 100%; border: 1px solid #dce3ea; border-radius: 10px; padding: 10px; font-size: 14px; margin-bottom: 8px; }
 .qa-form textarea { min-height: 70px; resize: none; }
-.tabbar { position: fixed; bottom: 0; left: 50%; transform: translateX(-50%); width: 100%; max-width: 480px; display: flex; background: #fff; border-top: 1px solid #e1e7ee; overflow-x: auto; }
+.tabbar { position: fixed; bottom: 0; left: 50%; transform: translateX(-50%); width: 100%; max-width: 480px; display: flex; background: #fff; border-top: 1px solid #e1e7ee; overflow-x: auto; padding-bottom: env(safe-area-inset-bottom, 0px); }
 .tab { flex: none; min-width: 62px; padding: 12px 4px; background: none; border: none; font-size: 12px; color: #7c8896; cursor: pointer; }
 .tab.active { color: #2b5876; font-weight: 600; }
 /* shop */
