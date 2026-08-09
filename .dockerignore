@@ -1,10 +1,7 @@
 landing.db
 landing.db-wal
 landing.db-shm
-app.db
-app.db-journal
-app.db-wal
-app.db-shm
 __pycache__/
 *.pyc
+.git/
 .env

@@ -1,19 +1,24 @@
 #!/usr/bin/env python3
 """留学生落地包 (Landing Pack) — bilingual hub for international Chinese students.
-Stdlib-only backend with hardened auth: pbkdf2 hashing, httpOnly session cookies,
-login lockout, email verification + password reset (dev link mode)."""
+Stdlib-only backend (http.server + sqlite3) with email/password auth + monetization
+(affiliate shop, paid Landing Kits, mentorship bookings)."""
 import http.server
 import socketserver
 import json
 import os
 import sqlite3
 import hashlib
-import hmac
 import secrets
-import time
 from urllib.parse import urlparse, parse_qs
 
-DB = os.path.join(os.path.dirname(__file__), "app.db")
+# ---- Payment provider config (deploy: set env vars; local/dev uses mock) ----
+PAYMENT_PROVIDER = os.environ.get("PAYMENT_PROVIDER", "mock")  # "mock" | "stripe"
+STRIPE_SECRET_KEY = os.environ.get("STRIPE_SECRET_KEY", "")
+STRIPE_PUBLISHABLE_KEY = os.environ.get("STRIPE_PUBLISHABLE_KEY", "")
+APP_BASE_URL = os.environ.get("APP_BASE_URL", "http://localhost:8000")
+
+DB = os.path.join(os.environ.get("DATA_DIR", os.path.dirname(__file__)), "landing.db")
+
 CHECKLIST = [
     ("Visa", "签证", "Apply for student visa", "申请学生签证"),
     ("Visa", "签证", "Medical check & police clearance", "体检与无犯罪证明"),
@@ -87,80 +92,234 @@ WIKI = {
     ],
 }
 
-TEMPLATES = [
-    ("Visa", "签证", "签证邀请信 / 录取信清单", "Visa invitation letter checklist",
-     "1. 学校正式录取信（带签名/印章）\n2. CAS / I-20 / COE 等签证函\n3. 资金证明（银行存款/奖学金）\n4. 护照首页复印件\n5. 肺结核体检报告（部分国家）",
-     "1. Official offer letter (signed/stamped)\n2. CAS / I-20 / COE visa document\n3. Proof of funds (bank/scholarship)\n4. Passport photo page copy\n5. TB test report (some countries)"),
-    ("Housing", "住宿", "租房合同检查清单", "Rental contract checklist",
-     "1. 房东/中介身份与合同主体\n2. 租期与起止日期\n3. 押金金额与退还条件\n4. 是否含账单（水电网气）\n5. 提前退租/转租条款",
-     "1. Landlord/agent identity & parties\n2. Tenancy term & dates\n3. Deposit amount & return terms\n4. Bills included (water/electric/gas)\n5. Early exit/sublet clauses"),
-    ("Arrival", "抵达", "落地必备清单", "Arrival essentials",
-     "1. 护照 + 签证 + 录取信（纸质+电子版）\n2. 现金 + 国际信用卡\n3. 驾照翻译/国际驾照\n4. 常用药 + 处方\n5. 转换插头 + 当地手机卡",
-     "1. Passport + visa + offer (paper + digital)\n2. Cash + intl credit card\n3. Driving licence translation/IDP\n4. Meds + prescriptions\n5. Adapter + local SIM"),
+PRODUCTS = [
+    ("sim", "Airalo eSIM", "Airalo eSIM 全球流量", "Instant data on landing, no SIM swap.", "落地即用，免换卡，覆盖180+国家。", "from $4.5/GB", "up to $3/order", "https://www.airalo.com"),
+    ("sim", "Holafly eSIM", "Holafly 留学生 eSIM", "Unlimited plans for students.", "留学生无限流量套餐，按天计费。", "from $5.9/day", "up to $6/order", "https://www.holafly.com"),
+    ("insurance", "AXA Student", "AXA 留学生医疗险", "Worldwide cover + repatriation.", "全球医疗+遣返保障，符合签证要求。", "from ¥1200/yr", "5% commission", "https://www.axa.com"),
+    ("insurance", "Allianz Care", "Allianz Care 留学险", "Flexible international health.", "灵活国际健康险，可按月付。", "from €39/mo", "5% commission", "https://www.allianzcare.com"),
+    ("flight", "Skyscanner", "Skyscanner 机票比价", "Compare millions of flights.", "比价全网机票，学生优惠提醒。", "free", "affiliate", "https://www.skyscanner.com"),
+    ("bank", "Wise", "Wise 多币种账户", "Hold 40+ currencies, referral bonus.", "多币种账户，推荐返现。", "free", "£50/referral", "https://wise.com"),
+    ("bank", "Revolut", "Revolut 学生账户", "No-fee FX for students.", "学生免手续费换汇。", "free", "€10/referral", "https://www.revolut.com"),
+    ("essentials", "Travel Adapter", "转换插头 (Amazon)", "Must-have for appliances.", "电器必备转换插头。", "¥39", "6% commission", "https://www.amazon.com"),
+    ("essentials", "Luggage Scale", "便携行李秤 (Amazon)", "Avoid overweight fees.", "避免超重罚款。", "¥29", "6% commission", "https://www.amazon.com"),
 ]
 
-PRESETS = {
-    "London": [
-        ("Visa", "签证", "申请 BRP / eVisa 注册", "Register BRP / eVisa"),
-        ("Insurance", "保险", "注册 NHS 全科医生(GP)", "Register with an NHS GP"),
-        ("Bank", "银行卡", "预约银行开户(带 BRP)", "Book bank appointment (with BRP)"),
+KIT1_ZH = """# 全能落地包 Pro
+
+## 1. 行前签证清单（按国家）
+- 英国：CAS、资金证明28天、TB检测
+- 美国：I-20、SEVIS费、面签
+- 澳洲：CoE、GTE、体检
+- 加拿大：LOA、GIC、生物信息
+- 日本：在留资格、经费支付书
+
+## 2. 租房合同审核模板
+- 押金是否由政府/第三方托管
+- 租期与提前解约条款
+- 水电煤与网费归属
+- 看房检查表（入住拍照留证）
+
+## 3. 抵达生存手册
+- 机场到市区交通
+- 办理当地手机卡 / eSIM
+- 银行开户材料清单
+- 买保险时间线
+
+## 4. 打包清单
+- 证件类、电器类、药品类、衣物类"""
+KIT1_EN = """# All-in-One Landing Kit Pro
+
+## 1. Pre-arrival visa checklist (by country)
+- UK: CAS, 28-day funds proof, TB test
+- US: I-20, SEVIS fee, interview
+- AU: CoE, GTE, medical
+- CA: LOA, GIC, biometrics
+- JP: COE, financial sponsor letter
+
+## 2. Lease review template
+- Is the deposit lodged with gov/3rd party?
+- Lease term & early-termination clauses
+- Who pays utilities & internet
+- Viewing checklist (photo on move-in)
+
+## 3. Arrival survival guide
+- Airport to city transport
+- Local SIM / eSIM
+- Bank docs checklist
+- Insurance timeline
+
+## 4. Packing list
+- Documents, electronics, medicine, clothing"""
+KIT2_ZH = """# 租房避坑包
+
+## 各国红flag清单
+- 英国：押金未进 Deposit Protection Scheme
+- 美国：要求预付全年租金且无机构担保
+- 澳洲：bond 未交 RTA 托管
+- 加拿大：lease 起租日早于签证生效
+- 日本：保证公司费用过高且无说明
+
+## 看房必查
+- 采光 / 隔音 / 霉斑
+- 门锁 / 烟雾报警器
+- 水电表读数拍照
+
+## 押金保护
+- 入住前拍照留证
+- 退租清洁凭证保留"""
+KIT2_EN = """# Lease Safety Kit
+
+## Red flags by country
+- UK: deposit not in a Deposit Protection Scheme
+- US: full-year rent upfront with no escrow
+- AU: bond not lodged with the RTA
+- CA: lease start before visa validity
+- JP: guarantor fee unexplained / too high
+
+## Viewing must-checks
+- Light / sound / mould
+- Locks / smoke alarm
+- Photo the utility meters
+
+## Deposit protection
+- Photo on move-in
+- Keep end-of-lease cleaning proof"""
+
+KITS = [
+    ("全能落地包 Pro", "All-in-One Landing Kit Pro",
+     "5国签证清单+租房合同审核模板+抵达生存手册+打包清单（中英双语）。",
+     "Visa checklists for 5 countries + lease-review template + arrival guide + packing list (bilingual).",
+     39, KIT1_EN, KIT1_ZH),
+    ("租房避坑包", "Lease Safety Kit",
+     "各国租房红flag清单+押金保护指南+看房检查表。",
+     "Red-flag checklist per country + deposit protection + viewing checklist.",
+     19, KIT2_EN, KIT2_ZH),
+]
+
+MENTORS = [
+    ("Li Mei", "UCL", "伦敦大学学院", "UCL 硕士，帮过30+学弟妹落地伦敦。", "UCL MSc, helped 30+ juniors land in London.", "签证/租房/银行", 99),
+    ("Zhang Wei", "NYU", "纽约大学", "NYU 在校生，熟悉F1签证与纽约生活。", "NYU student, knows F1 visa & NYC life.", "签证/保险/社交", 89),
+    ("Wang Fang", "Uni of Sydney", "悉尼大学", "悉尼租房与打工经验丰富。", "Rich in Sydney renting & part-time jobs.", "租房/打工/保险", 79),
+    ("Chen Hao", "UofT", "多伦多大学", "多伦多开户与冬装采购达人。", "Toronto banking & winter gear pro.", "银行/生活", 69),
+    ("Sato Yuki", "UTokyo", "东京大学", "东京租房与在留卡办理经验。", "Tokyo renting & residence card help.", "签证/租房", 89),
+]
+
+
+SCHOOLS = [
+    ("UCL", "伦敦大学学院", 1, "UK", "英国"),
+    ("Imperial College London", "帝国理工学院", 1, "UK", "英国"),
+    ("LSE", "伦敦政治经济学院", 1, "UK", "英国"),
+    ("NYU", "纽约大学", 2, "USA", "美国"),
+    ("Columbia University", "哥伦比亚大学", 2, "USA", "美国"),
+    ("University of Sydney", "悉尼大学", 3, "Australia", "澳大利亚"),
+    ("UNSW", "新南威尔士大学", 3, "Australia", "澳大利亚"),
+    ("University of Toronto", "多伦多大学", 4, "Canada", "加拿大"),
+    ("University of Tokyo", "东京大学", 5, "Japan", "日本"),
+    ("Waseda University", "早稻田大学", 5, "Japan", "日本"),
+]
+SCHOOL_COUNTRY = {0: "UK", 1: "UK", 2: "UK", 3: "USA", 4: "USA", 5: "Australia", 6: "Australia", 7: "Canada", 8: "Japan", 9: "Japan"}
+COUNTRY_TASKS = {
+    "UK": [
+        ("Visa", "签证", "Apply for a UK Student Route visa (you need a CAS from your school)", "申请英国学生签证（需学校发的 CAS）"),
+        ("Visa", "签证", "Pay the IHS health surcharge", "缴纳 IHS 医疗附加费"),
+        ("Visa", "签证", "Collect your BRP / eVisa after arriving in the UK", "抵达英国后领取 BRP / 电子签证"),
+        ("Health", "体检", "TB test if required for your country", "如来自清单国家需做肺结核(TB)检测"),
+        ("Arrival", "抵达", "Register with a GP (NHS doctor)", "注册 NHS 社区医生(GP)"),
+        ("Bank", "银行", "Open a UK bank account (needs your BRP)", "开设英国银行账户（需 BRP）"),
     ],
-    "New York": [
-        ("Visa", "签证", "激活 SEVIS / 入境", "Activate SEVIS / enter US"),
-        ("Bank", "银行卡", "办 SSN 后开美国银行卡", "Open US bank after SSN"),
-        ("Phone", "手机", "办美国运营商套餐", "Get a US carrier plan"),
+    "USA": [
+        ("Visa", "签证", "Receive your I-20 from the school", "从学校领取 I-20 表格"),
+        ("Visa", "签证", "Pay the SEVIS I-901 fee", "缴纳 SEVIS I-901 费用"),
+        ("Visa", "签证", "Complete the DS-160 form and attend your visa interview", "填写 DS-160 并参加签证面签"),
+        ("Visa", "签证", "Pay the MRV visa application fee", "缴纳签证申请费(MRV)"),
+        ("Arrival", "抵达", "Apply for an SSN if you'll work on campus", "如需校内工作申请社安号(SSN)"),
+        ("Bank", "银行", "Open a US bank account", "开设美国银行账户"),
     ],
-    "Sydney": [
-        ("Visa", "签证", "激活 COE / 入境", "Activate CoE / enter AU"),
-        ("Bank", "银行卡", "开澳洲银行账户", "Open AU bank account"),
-        ("Insurance", "保险", "买 OSHC 保险", "Get OSHC insurance"),
+    "Australia": [
+        ("Visa", "签证", "Receive your CoE (Confirmation of Enrolment)", "领取 CoE 入学确认书"),
+        ("Visa", "签证", "Buy OSHC overseas student health cover", "购买 OSHC 海外学生医疗保险"),
+        ("Visa", "签证", "Apply for a student visa (subclass 500)", "申请学生签证(500 类别)"),
+        ("Tax", "税务", "Apply for a TFN (Tax File Number)", "申请税号(TFN)"),
+        ("Bank", "银行", "Open an Australian bank account", "开设澳大利亚银行账户"),
+        ("Arrival", "抵达", "Get a local SIM card / phone plan", "办理本地手机卡/套餐"),
     ],
-    "Toronto": [
-        ("Visa", "签证", "激活学签 / 入境", "Activate study permit / enter CA"),
-        ("Bank", "银行卡", "开加拿大银行账户", "Open CA bank account"),
-        ("Phone", "手机", "办加拿大手机套餐", "Get CA phone plan"),
+    "Canada": [
+        ("Visa", "签证", "Receive your LOA (Letter of Acceptance)", "领取录取通知书(LOA)"),
+        ("Visa", "签证", "Apply for a study permit", "申请学习许可(study permit)"),
+        ("Visa", "签证", "Prepare your GIC (Guaranteed Investment Certificate)", "准备 GIC 担保投资证"),
+        ("Arrival", "抵达", "Apply for an SIN (Social Insurance Number)", "申请工卡(SIN)"),
+        ("Bank", "银行", "Open a Canadian bank account", "开设加拿大银行账户"),
     ],
-    "Tokyo": [
-        ("Visa", "签证", "在留卡换发 + 住民票", "Residence card + address"),
-        ("Bank", "银行卡", "开日本银行账户", "Open JP bank account"),
-        ("Phone", "手机", "办日本手机/格安SIM", "Get JP phone / budget SIM"),
+    "Japan": [
+        ("Visa", "签证", "Obtain your Certificate of Eligibility (CoE)", "取得在留资格认定证明书(CoE)"),
+        ("Visa", "签证", "Apply for a student visa at the embassy", "在使馆申请留学签证"),
+        ("Arrival", "抵达", "Get your Residence Card (在留卡) on arrival", "抵达后办理在留卡"),
+        ("Bank", "银行", "Open a Japanese bank account (needs your residence card)", "开设日本银行账户（需在留卡）"),
+        ("Phone", "手机", "Get a phone plan (needs your residence card)", "办理手机套餐（需个人番号/在留卡）"),
     ],
 }
+SCHOOL_TASKS = []
+for _i, _sch in enumerate(SCHOOLS):
+    _sid = _i + 1
+    for _t in COUNTRY_TASKS[SCHOOL_COUNTRY[_i]]:
+        SCHOOL_TASKS.append((_sid, _t[0], _t[1], _t[2], _t[3]))
+
+SCHOOL_NOTES = [
+    (1, "Collect your BRP at a local Post Office using your visa decision letter. Open a Monzo/Starling account online with your BRP + passport. UCL sends pre-enrolment tasks via Portico.", "凭签证决定信到附近邮局领取 BRP。用 BRP+护照在线开 Monzo/Starling 银行账户。UCL 通过 Portico 发送入学前任务。"),
+    (2, "Imperial may require ATAS for your course - check early. Collect your BRP, then get your College ID at the library. South Kensington housing is pricey, so book early.", "若课程需要请尽早办 ATAS。领取 BRP 后到图书馆领学院 ID。南肯辛顿房租高，尽早订房。"),
+    (3, "LSE accommodation opens early - apply fast. Collect your BRP, then your LSE ID at the Students' Union. Strong alumni network for finance internships.", "LSE 宿舍开放早，尽快申请。领取 BRP 后在学联领 LSE 学生卡。金融实习校友网强。"),
+    (4, "Pay SEVIS and book your visa interview early - NYC slots fill fast. On arrival get your NYU NCard and activate Albert for registration. Open a US bank account with passport + student ID.", "尽早缴 SEVIS 并约面签 - 纽约名额紧。抵达后办 NYU NCard，在 Albert 选课。凭护照+学生证开户。"),
+    (5, "Columbia uses SSOL for registration - get your UNI and ID first. A US bank account needs passport, visa, I-20 and a campus address. Morningside Heights housing is competitive.", "哥大用 SSOL 选课，先拿 UNI 和 ID。开户需护照、签证、I-20 和校园地址。Morningside 租房激烈。"),
+    (6, "Buy OSHC before lodging your visa. On arrival get your USI (student number) and a local SIM. Open a bank account (Commonwealth/NAB) with passport + CoE + visa.", "递签前买 OSHC。抵达后拿 USI 学号和本地手机卡。凭护照+CoE+签证开银行账户。"),
+    (7, "UNSW uses myUNSW for enrolment - get your zID and student card. Open a bank account with passport + CoE. Apply for a TFN after arrival to avoid tax withholding.", "UNSW 用 myUNSW 注册，拿 zID 和学生卡。凭护照+CoE 开户。抵澳后尽快申请 TFN 避免扣税。"),
+    (8, "Apply for your GIC and study permit early. On arrival get your TCard (student ID) and activate ACORN. Open a bank account (RBC/CIBC) with passport + permit + SIN.", "尽早准备 GIC 和学习许可。抵达后办 TCard 并激活 ACORN。凭护照+许可+SIN 开银行账户。"),
+    (9, "Apply for your CoE via your faculty, then the visa. Within 14 days of arrival, register your address at the city office and get your Residence Card. Open a bank account only after you have the card.", "经研究科申请 CoE 再办签证。抵达 14 天内到区役所登记住址并领在留卡。有在留卡后才能开户。"),
+    (10, "Waseda issues your CoE through admissions. After arrival, complete address registration and get your Residence Card. Open a bank account (Japan Post / SMBC) with the card + student ID.", "早稻田经招生办发 CoE。抵达后办住址登记与在留卡。凭在留卡+学生证开银行账户。"),
+]
+
 
 def db():
-    c = sqlite3.connect(DB)
+    c = sqlite3.connect(DB, timeout=30, check_same_thread=False)
     c.row_factory = sqlite3.Row
+    c.execute("PRAGMA busy_timeout=30000")
+    c.execute("PRAGMA journal_mode=WAL")
     return c
 
 
-def hash_pw(pw, salt=None):
-    salt = salt or secrets.token_hex(16)
-    dk = hashlib.pbkdf2_hmac("sha256", pw.encode(), salt.encode(), 100000)
-    return salt, dk.hex()
+def hash_pw(pw):
+    salt = secrets.token_hex(8)
+    d = hashlib.pbkdf2_hmac("sha256", pw.encode(), salt.encode(), 100000).hex()
+    return salt + ":" + d
 
 
-def verify_pw(pw, salt, h):
-    _, d = hash_pw(pw, salt)
-    return hmac.compare_digest(d, h)
-
-
-def new_token():
-    return secrets.token_hex(16)
+def verify_pw(pw, stored):
+    try:
+        salt, d = stored.split(":")
+    except Exception:
+        return False
+    return hashlib.pbkdf2_hmac("sha256", pw.encode(), salt.encode(), 100000).hex() == d
 
 
 def init():
     c = db()
     c.executescript("""
-    CREATE TABLE IF NOT EXISTS accounts(id INTEGER PRIMARY KEY AUTOINCREMENT, username TEXT UNIQUE, email TEXT, pw_salt TEXT, pw_hash TEXT, lang TEXT DEFAULT 'zh', verified INTEGER DEFAULT 0, verify_token TEXT, reset_token TEXT, fail_count INTEGER DEFAULT 0, lock_until TEXT, created_at TEXT DEFAULT (datetime('now')));
-    CREATE TABLE IF NOT EXISTS sessions(token TEXT PRIMARY KEY, user_id INTEGER, created_at TEXT DEFAULT (datetime('now')));
+    CREATE TABLE IF NOT EXISTS users(id TEXT PRIMARY KEY, email TEXT UNIQUE, password TEXT, name TEXT, lang TEXT DEFAULT 'zh');
     CREATE TABLE IF NOT EXISTS checklist(id INTEGER PRIMARY KEY AUTOINCREMENT, cat_en TEXT, cat_zh TEXT, task_en TEXT, task_zh TEXT);
     CREATE TABLE IF NOT EXISTS user_checks(user_id TEXT, task_id INTEGER, done INTEGER DEFAULT 0, PRIMARY KEY(user_id, task_id));
     CREATE TABLE IF NOT EXISTS cities(id INTEGER PRIMARY KEY AUTOINCREMENT, name_en TEXT, name_zh TEXT);
     CREATE TABLE IF NOT EXISTS wiki(id INTEGER PRIMARY KEY AUTOINCREMENT, city_id INTEGER, cat_en TEXT, cat_zh TEXT, title_en TEXT, title_zh TEXT, body_en TEXT, body_zh TEXT);
     CREATE TABLE IF NOT EXISTS questions(id INTEGER PRIMARY KEY AUTOINCREMENT, user_id TEXT, name TEXT, lang TEXT, title TEXT, body TEXT, created_at TEXT DEFAULT (datetime('now')));
     CREATE TABLE IF NOT EXISTS answers(id INTEGER PRIMARY KEY AUTOINCREMENT, q_id INTEGER, name TEXT, lang TEXT, text TEXT, created_at TEXT DEFAULT (datetime('now')));
-    CREATE TABLE IF NOT EXISTS templates(id INTEGER PRIMARY KEY AUTOINCREMENT, cat_en TEXT, cat_zh TEXT, title_en TEXT, title_zh TEXT, body_en TEXT, body_zh TEXT);
-    CREATE TABLE IF NOT EXISTS presets(id INTEGER PRIMARY KEY AUTOINCREMENT, city_id INTEGER, cat_en TEXT, cat_zh TEXT, task_en TEXT, task_zh TEXT);
+    CREATE TABLE IF NOT EXISTS products(id INTEGER PRIMARY KEY AUTOINCREMENT, cat TEXT, name_en TEXT, name_zh TEXT, desc_en TEXT, desc_zh TEXT, price TEXT, commission TEXT, url TEXT);
+    CREATE TABLE IF NOT EXISTS clicks(id INTEGER PRIMARY KEY AUTOINCREMENT, product_id INTEGER, user_id TEXT, created_at TEXT DEFAULT (datetime('now')));
+    CREATE TABLE IF NOT EXISTS kits(id INTEGER PRIMARY KEY AUTOINCREMENT, name_en TEXT, name_zh TEXT, desc_en TEXT, desc_zh TEXT, price INTEGER, content_en TEXT, content_zh TEXT);
+    CREATE TABLE IF NOT EXISTS orders(id INTEGER PRIMARY KEY AUTOINCREMENT, user_id TEXT, kit_id INTEGER, status TEXT DEFAULT 'paid', created_at TEXT DEFAULT (datetime('now')));
+    CREATE TABLE IF NOT EXISTS mentors(id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT, school_en TEXT, school_zh TEXT, bio_en TEXT, bio_zh TEXT, expertise TEXT, price INTEGER);
+    CREATE TABLE IF NOT EXISTS bookings(id INTEGER PRIMARY KEY AUTOINCREMENT, user_id TEXT, mentor_id INTEGER, slot TEXT, topic TEXT, status TEXT DEFAULT 'pending', created_at TEXT DEFAULT (datetime('now')));
+    CREATE TABLE IF NOT EXISTS schools(id INTEGER PRIMARY KEY AUTOINCREMENT, name_en TEXT, name_zh TEXT, city_id INTEGER, country_en TEXT, country_zh TEXT);
+    CREATE TABLE IF NOT EXISTS school_tasks(id INTEGER PRIMARY KEY AUTOINCREMENT, school_id INTEGER, cat_en TEXT, cat_zh TEXT, task_en TEXT, task_zh TEXT);
+    CREATE TABLE IF NOT EXISTS user_school_checks(user_id TEXT, school_task_id INTEGER, done INTEGER DEFAULT 0, PRIMARY KEY(user_id, school_task_id));
+    CREATE TABLE IF NOT EXISTS school_notes(id INTEGER PRIMARY KEY AUTOINCREMENT, school_id INTEGER, note_en TEXT, note_zh TEXT);
     """)
     if c.execute("SELECT COUNT(*) FROM checklist").fetchone()[0] == 0:
         c.executemany("INSERT INTO checklist(cat_en,cat_zh,task_en,task_zh) VALUES(?,?,?,?)", CHECKLIST)
@@ -171,35 +330,39 @@ def init():
             for cat_en, cat_zh, t_en, t_zh, b_en, b_zh in WIKI[en]:
                 c.execute("INSERT INTO wiki(city_id,cat_en,cat_zh,title_en,title_zh,body_en,body_zh) VALUES(?,?,?,?,?,?,?)",
                           (cid, cat_en, cat_zh, t_en, t_zh, b_en, b_zh))
-    if c.execute("SELECT COUNT(*) FROM templates").fetchone()[0] == 0:
-        c.executemany("INSERT INTO templates(cat_en,cat_zh,title_en,title_zh,body_en,body_zh) VALUES(?,?,?,?,?,?)", TEMPLATES)
-    if c.execute("SELECT COUNT(*) FROM presets").fetchone()[0] == 0:
-        for en, zh in CITIES:
-            cid = c.execute("SELECT id FROM cities WHERE name_en=?", (en,)).fetchone()[0]
-            for cat_en, cat_zh, t_en, t_zh in PRESETS[en]:
-                c.execute("INSERT INTO presets(city_id,cat_en,cat_zh,task_en,task_zh) VALUES(?,?,?,?,?)",
-                          (cid, cat_en, cat_zh, t_en, t_zh))
+    if c.execute("SELECT COUNT(*) FROM products").fetchone()[0] == 0:
+        c.executemany("INSERT INTO products(cat,name_en,name_zh,desc_en,desc_zh,price,commission,url) VALUES(?,?,?,?,?,?,?,?)", PRODUCTS)
+    if c.execute("SELECT COUNT(*) FROM kits").fetchone()[0] == 0:
+        c.executemany("INSERT INTO kits(name_en,name_zh,desc_en,desc_zh,price,content_en,content_zh) VALUES(?,?,?,?,?,?,?)", KITS)
+    if c.execute("SELECT COUNT(*) FROM mentors").fetchone()[0] == 0:
+        c.executemany("INSERT INTO mentors(name,school_en,school_zh,bio_en,bio_zh,expertise,price) VALUES(?,?,?,?,?,?,?)", MENTORS)
+    try:
+        c.execute("ALTER TABLE users ADD COLUMN school_id INTEGER")
+    except Exception:
+        pass
+    if c.execute("SELECT COUNT(*) FROM schools").fetchone()[0] == 0:
+        c.executemany("INSERT INTO schools(name_en,name_zh,city_id,country_en,country_zh) VALUES(?,?,?,?,?)", SCHOOLS)
+    if c.execute("SELECT COUNT(*) FROM school_tasks").fetchone()[0] == 0:
+        c.executemany("INSERT INTO school_tasks(school_id,cat_en,cat_zh,task_en,task_zh) VALUES(?,?,?,?,?)", SCHOOL_TASKS)
+    if c.execute("SELECT COUNT(*) FROM school_notes").fetchone()[0] == 0:
+        c.executemany("INSERT INTO school_notes(school_id,note_en,note_zh) VALUES(?,?,?)", SCHOOL_NOTES)
+    if not c.execute("SELECT 1 FROM users WHERE email=?", ("demo@landing.pack",)).fetchone():
+        c.execute("INSERT INTO users(id,email,password,name,lang) VALUES(?,?,?,?,?)",
+                  ("u_demo", "demo@landing.pack", hash_pw("demo1234"), "Demo同学", "zh"))
     c.commit()
     c.close()
 
 
 class H(http.server.BaseHTTPRequestHandler):
-    def _j(self, obj, code=200, cookie=None):
-        self.send_response(code)
-        if cookie is not None:
-            self.send_header("Set-Cookie", cookie)
+    def end_headers(self):
+        self.send_header("Cache-Control", "no-store, must-revalidate")
+        self.send_header("Pragma", "no-cache")
+        super().end_headers()
+    def _j(self, obj):
+        self.send_response(200)
         self.send_header("Content-Type", "application/json; charset=utf-8")
-        self.send_header("Access-Control-Allow-Origin", "*")
         self.end_headers()
         self.wfile.write(json.dumps(obj, ensure_ascii=False).encode("utf-8"))
-
-    def _cookie(self, token="", clear=False):
-        ma = 0 if clear else 60 * 60 * 24 * 30
-        v = "" if clear else token
-        s = f"lp_token={v}; Path=/; HttpOnly; SameSite=Lax; Max-Age={ma}"
-        if os.environ.get("LP_HTTPS") == "1":
-            s += "; Secure"
-        return s
 
     def _static(self, fp, ext):
         ct = {".css": "text/css", ".js": "application/javascript", ".html": "text/html"}.get(ext, "application/octet-stream")
@@ -208,72 +371,27 @@ class H(http.server.BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(open(fp, encoding="utf-8").read().encode("utf-8"))
 
-    def _cookie_token(self):
-        raw = self.headers.get("Cookie", "")
-        for part in raw.split(";"):
-            k, _, v = part.strip().partition("=")
-            if k == "lp_token":
-                return v
-        return ""
-
-    def _token(self, p, qs):
-        ck = self._cookie_token()
-        if ck:
-            c = db(); r = c.execute("SELECT user_id FROM sessions WHERE token=?", (ck,)).fetchone(); c.close()
-            return ck if r else None
-        t = qs.get("token", [""])[0]
-        if not t and self.headers.get("Authorization", "").startswith("Bearer "):
-            t = self.headers["Authorization"][7:]
-        if not t:
-            return None
-        c = db(); r = c.execute("SELECT user_id FROM sessions WHERE token=?", (t,)).fetchone(); c.close()
-        return t if r else None
-
     def do_GET(self):
         p = urlparse(self.path)
         if p.path in ("/", "/index.html"):
             self._static(os.path.join(os.path.dirname(__file__), "static", "index.html"), ".html")
-            return
-        if p.path == "/app.html":
-            self._static(os.path.join(os.path.dirname(__file__), "static", "app.html"), ".html")
             return
         if p.path.startswith("/static/"):
             fp = os.path.join(os.path.dirname(__file__), p.path.lstrip("/"))
             if os.path.exists(fp):
                 self._static(fp, os.path.splitext(fp)[1].lower())
             else:
-                self._j({"error": "nf"}, 404)
+                self._j({"error": "nf"})
             return
         qs = parse_qs(p.query)
-        if p.path.startswith("/api/") and p.path not in ("/api/register", "/api/login", "/api/verify"):
-            if not self._token(p, qs):
-                self._j({"error": "unauth"}, 401)
-                return
-        if p.path == "/api/verify":
-            vt = qs.get("token", [""])[0]
-            c = db(); r = c.execute("SELECT id FROM accounts WHERE verify_token=?", (vt,)).fetchone()
-            if not r:
-                c.close(); return self._j({"error": "invalid or used link"}, 400)
-            c.execute("UPDATE accounts SET verified=1, verify_token=NULL WHERE id=?", (r["id"],))
-            c.commit(); c.close()
-            self._j({"ok": True, "verified": True}); return
-        if p.path == "/api/me":
-            tok = self._token(p, qs)
-            if not tok: return self._j({"error": "unauth"}, 401)
-            c = db(); a = c.execute("SELECT username, lang, verified FROM accounts WHERE id=(SELECT user_id FROM sessions WHERE token=?)", (tok,)).fetchone(); c.close()
-            self._j({"username": a["username"], "lang": a["lang"], "verified": a["verified"] == 1}); return
+        uid = qs.get("uid", [""])[0]
+        if p.path == "/api/profile":
+            c = db(); u = c.execute("SELECT name,lang,school_id FROM users WHERE id=?", (uid,)).fetchone(); c.close()
+            self._j({"name": u["name"] if u else None, "lang": u["lang"] if u else "zh", "school_id": u["school_id"] if u else None}); return
         if p.path == "/api/checklist":
             c = db(); rows = c.execute("SELECT id,cat_en,cat_zh,task_en,task_zh FROM checklist ORDER BY id").fetchall(); c.close()
             self._j([dict(r) for r in rows]); return
-        if p.path == "/api/templates":
-            c = db(); rows = c.execute("SELECT cat_en,cat_zh,title_en,title_zh,body_en,body_zh FROM templates ORDER BY id").fetchall(); c.close()
-            self._j([dict(r) for r in rows]); return
-        if p.path == "/api/presets":
-            cid = qs.get("city_id", [""])[0]
-            c = db(); rows = c.execute("SELECT id,cat_en,cat_zh,task_en,task_zh FROM presets WHERE city_id=?", (cid,)).fetchall(); c.close()
-            self._j([dict(r) for r in rows]); return
         if p.path == "/api/checks":
-            uid = self._token(p, qs)
             c = db(); rows = c.execute("SELECT task_id,done FROM user_checks WHERE user_id=?", (uid,)).fetchall(); c.close()
             self._j({r["task_id"]: r["done"] for r in rows}); return
         if p.path == "/api/cities":
@@ -290,124 +408,142 @@ class H(http.server.BaseHTTPRequestHandler):
                 rows = c.execute("SELECT id,name,lang,title,body,created_at FROM questions WHERE lang=? ORDER BY id DESC", (lang,)).fetchall()
             else:
                 rows = c.execute("SELECT id,name,lang,title,body,created_at FROM questions ORDER BY id DESC").fetchall()
-            c.close()
-            self._j([dict(r) for r in rows]); return
+            c.close(); self._j([dict(r) for r in rows]); return
         if p.path == "/api/answers":
             qid = qs.get("q_id", [""])[0]
             c = db(); rows = c.execute("SELECT name,lang,text,created_at FROM answers WHERE q_id=? ORDER BY id", (qid,)).fetchall(); c.close()
             self._j([dict(r) for r in rows]); return
-        self._j({"error": "unknown"}, 404)
+        if p.path == "/api/products":
+            cat = qs.get("cat", [""])[0]
+            c = db()
+            if cat:
+                rows = c.execute("SELECT id,cat,name_en,name_zh,desc_en,desc_zh,price,commission,url FROM products WHERE cat=? ORDER BY id", (cat,)).fetchall()
+            else:
+                rows = c.execute("SELECT id,cat,name_en,name_zh,desc_en,desc_zh,price,commission,url FROM products ORDER BY cat,id").fetchall()
+            c.close(); self._j([dict(r) for r in rows]); return
+        if p.path == "/api/kits":
+            c = db(); rows = c.execute("SELECT id,name_en,name_zh,desc_en,desc_zh,price FROM kits ORDER BY id").fetchall(); c.close()
+            self._j([dict(r) for r in rows]); return
+        if p.path == "/api/my_kits":
+            c = db(); rows = c.execute("SELECT k.id,k.name_en,k.name_zh,k.desc_en,k.desc_zh,k.price,o.status FROM orders o JOIN kits k ON k.id=o.kit_id WHERE o.user_id=?", (uid,)).fetchall(); c.close()
+            self._j([dict(r) for r in rows]); return
+        if p.path == "/api/kit_content":
+            kid = qs.get("kit_id", [""])[0]
+            c = db()
+            owned = c.execute("SELECT 1 FROM orders WHERE user_id=? AND kit_id=? AND status='paid'", (uid, kid)).fetchone()
+            if not owned:
+                c.close(); self._j({"error": "no_access"}); return
+            r = c.execute("SELECT content_en,content_zh FROM kits WHERE id=?", (kid,)).fetchone(); c.close()
+            self._j({"content_en": r["content_en"], "content_zh": r["content_zh"]}); return
+        if p.path == "/api/mentors":
+            c = db(); rows = c.execute("SELECT id,name,school_en,school_zh,bio_en,bio_zh,expertise,price FROM mentors ORDER BY id").fetchall(); c.close()
+            self._j([dict(r) for r in rows]); return
+        if p.path == "/api/my_bookings":
+            c = db(); rows = c.execute("SELECT b.id,m.name,m.school_en,m.school_zh,b.slot,b.topic,b.status FROM bookings b JOIN mentors m ON m.id=b.mentor_id WHERE b.user_id=?", (uid,)).fetchall(); c.close()
+            self._j([dict(r) for r in rows]); return
+        if p.path == "/api/schools":
+            c = db(); rows = c.execute("SELECT s.id,s.name_en,s.name_zh,s.city_id,c.name_en AS city_en,c.name_zh AS city_zh,s.country_en,s.country_zh FROM schools s JOIN cities c ON c.id=s.city_id ORDER BY s.id").fetchall(); c.close()
+            self._j([dict(r) for r in rows]); return
+        if p.path == "/api/school_tasks":
+            sid = qs.get("school_id", [""])[0]
+            c = db(); rows = c.execute("SELECT id,school_id,cat_en,cat_zh,task_en,task_zh FROM school_tasks WHERE school_id=? ORDER BY id", (sid,)).fetchall(); c.close()
+            self._j([dict(r) for r in rows]); return
+        if p.path == "/api/school_checklist":
+            sid = qs.get("school_id", [""])[0]
+            c = db(); rows = c.execute("SELECT school_task_id,done FROM user_school_checks WHERE user_id=?", (uid,)).fetchall(); c.close()
+            self._j({str(r["school_task_id"]): r["done"] for r in rows}); return
+        if p.path == "/api/school_note":
+            sid = qs.get("school_id", [""])[0]
+            c = db(); row = c.execute("SELECT note_en,note_zh FROM school_notes WHERE school_id=?", (sid,)).fetchone(); c.close()
+            self._j({"note_en": row["note_en"] if row else "", "note_zh": row["note_zh"] if row else ""}); return
+        if p.path == "/api/health":
+            self._j({"status": "ok", "provider": PAYMENT_PROVIDER, "stripe": bool(STRIPE_SECRET_KEY)}); return
+        self._j({"error": "unknown"})
 
     def do_POST(self):
         p = urlparse(self.path)
         n = int(self.headers.get("Content-Length", 0))
         b = json.loads(self.rfile.read(n) or b"{}")
-        qs = parse_qs(p.query)
-        if p.path.startswith("/api/") and p.path not in ("/api/register", "/api/login", "/api/forgot", "/api/reset", "/api/verify", "/api/resend"):
-            if not self._token(p, qs):
-                self._j({"error": "unauth"}, 401)
-                return
         if p.path == "/api/register":
-            un = (b.get("username") or "").strip()
-            em = (b.get("email") or "").strip()
-            pw = b.get("password", "")
-            if len(un) < 2: return self._j({"error": "用户名至少 2 个字符 / username too short"}, 400)
-            if len(pw) < 6: return self._j({"error": "密码至少 6 位 / password too short"}, 400)
+            email = (b.get("email") or "").strip().lower()
+            pw = b.get("password") or ""
+            name = (b.get("name") or "同学").strip()
+            lang = b.get("lang", "zh")
+            if "@" not in email or len(pw) < 6:
+                self._j({"error": "invalid"}); return
             c = db()
-            if c.execute("SELECT id FROM accounts WHERE username=?", (un,)).fetchone():
-                c.close(); return self._j({"error": "用户名已存在 / username taken"}, 409)
-            if em and c.execute("SELECT id FROM accounts WHERE email=?", (em,)).fetchone():
-                c.close(); return self._j({"error": "邮箱已注册 / email taken"}, 409)
-            salt, h = hash_pw(pw)
-            vt = secrets.token_hex(16)
-            c.execute("INSERT INTO accounts(username,email,pw_salt,pw_hash,lang,verify_token) VALUES(?,?,?,?,?,?)", (un, em, salt, h, b.get("lang", "zh"), vt))
-            uid = c.execute("SELECT last_insert_rowid()").fetchone()[0]
-            tok = new_token()
-            c.execute("INSERT INTO sessions(token,user_id) VALUES(?,?)", (tok, uid))
+            if c.execute("SELECT 1 FROM users WHERE email=?", (email,)).fetchone():
+                c.close(); self._j({"error": "exists"}); return
+            uid = "u" + secrets.token_hex(6)
+            c.execute("INSERT INTO users(id,email,password,name,lang) VALUES(?,?,?,?,?)", (uid, email, hash_pw(pw), name, lang))
             c.commit(); c.close()
-            self._j({"username": un, "verify_url": "/api/verify?token=" + vt}, 200, self._cookie(tok))
-            return
+            self._j({"uid": uid, "name": name, "lang": lang}); return
         if p.path == "/api/login":
-            ident = (b.get("username") or "").strip()
-            pw = b.get("password", "")
-            c = db()
-            a = c.execute("SELECT id,pw_salt,pw_hash,username,verified,fail_count,lock_until FROM accounts WHERE username=? OR email=?", (ident, ident)).fetchone()
-            if not a:
-                c.close(); return self._j({"error": "用户名或密码错误 / invalid credentials"}, 401)
-            if a["lock_until"] and int(time.time()) < int(a["lock_until"]):
-                c.close(); return self._j({"error": "账户已锁定，请 5 分钟后再试 / account locked"}, 423)
-            if not verify_pw(pw, a["pw_salt"], a["pw_hash"]):
-                fc = a["fail_count"] + 1
-                if fc >= 5:
-                    c.execute("UPDATE accounts SET fail_count=?, lock_until=? WHERE id=?", (fc, int(time.time()) + 300, a["id"]))
-                else:
-                    c.execute("UPDATE accounts SET fail_count=? WHERE id=?", (fc, a["id"]))
-                c.commit(); c.close()
-                return self._j({"error": "用户名或密码错误 / invalid credentials"}, 401)
-            c.execute("UPDATE accounts SET fail_count=0, lock_until=NULL WHERE id=?", (a["id"],))
-            tok = new_token()
-            c.execute("INSERT INTO sessions(token,user_id) VALUES(?,?)", (tok, a["id"]))
-            c.commit(); c.close()
-            self._j({"username": a["username"], "verified": a["verified"] == 1}, 200, self._cookie(tok))
-            return
-        if p.path == "/api/resend":
-            ident = (b.get("username") or "").strip()
-            c = db(); a = c.execute("SELECT id,verify_token FROM accounts WHERE username=? OR email=?", (ident, ident)).fetchone()
-            if not a: c.close(); return self._j({"error": "账户不存在 / account not found"}, 404)
-            vt = secrets.token_hex(16)
-            c.execute("UPDATE accounts SET verify_token=? WHERE id=?", (vt, a["id"])); c.commit(); c.close()
-            self._j({"verify_url": "/api/verify?token=" + vt}); return
-        if p.path == "/api/forgot":
-            ident = (b.get("username") or "").strip()
-            c = db(); a = c.execute("SELECT id,reset_token FROM accounts WHERE username=? OR email=?", (ident, ident)).fetchone()
-            if not a: c.close(); return self._j({"error": "账户不存在 / account not found"}, 404)
-            rt = secrets.token_hex(16)
-            c.execute("UPDATE accounts SET reset_token=? WHERE id=?", (rt, a["id"])); c.commit(); c.close()
-            self._j({"reset_url": "/api/reset?token=" + rt + "&username=" + ident}); return
-        if p.path == "/api/reset":
-            rt = b.get("token", "")
-            un = (b.get("username") or "").strip()
-            pw = b.get("password", "")
-            if len(pw) < 6: return self._j({"error": "密码至少 6 位 / password too short"}, 400)
-            c = db(); a = c.execute("SELECT id,pw_salt FROM accounts WHERE username=? AND reset_token=?", (un, rt)).fetchone()
-            if not a: c.close(); return self._j({"error": "链接无效 / invalid link"}, 400)
-            salt, h = hash_pw(pw)
-            c.execute("UPDATE accounts SET pw_salt=?, pw_hash=?, reset_token=NULL, fail_count=0, lock_until=NULL WHERE id=?", (salt, h, a["id"]))
-            c.commit(); c.close()
-            self._j({"ok": True}); return
-        if p.path == "/api/logout":
-            tok = self._token(p, qs)
-            c = db(); c.execute("DELETE FROM sessions WHERE token=?", (tok,)); c.commit(); c.close()
-            self._j({"ok": True}, 200, self._cookie(clear=True)); return
-        if p.path == "/api/me":
-            tok = self._token(p, qs)
-            if not tok: return self._j({"error": "unauth"}, 401)
-            c = db(); u = c.execute("SELECT user_id FROM sessions WHERE token=?", (tok,)).fetchone()
-            if not u: c.close(); return self._j({"error": "unauth"}, 401)
-            c.execute("UPDATE accounts SET lang=? WHERE id=?", (b.get("lang", "zh"), u["user_id"]))
-            c.commit(); c.close()
-            self._j({"ok": True}); return
-        uid = self._token(p, qs)
-        if not uid:
-            return self._j({"error": "unauth"}, 401)
+            email = (b.get("email") or "").strip().lower()
+            pw = b.get("password") or ""
+            c = db(); u = c.execute("SELECT id,name,lang,password FROM users WHERE email=?", (email,)).fetchone(); c.close()
+            if not u or not verify_pw(pw, u["password"]):
+                self._j({"error": "bad"}); return
+            self._j({"uid": u["id"], "name": u["name"], "lang": u["lang"]}); return
+        if p.path == "/api/profile":
+            uid = b.get("uid"); name = b.get("name", ""); lang = b.get("lang", "zh")
+            c = db(); c.execute("UPDATE users SET name=?, lang=? WHERE id=?", (name, lang, uid))
+            if c.rowcount == 0:
+                c.execute("INSERT INTO users(id,name,lang) VALUES(?,?,?)", (uid, name, lang))
+            c.commit(); c.close(); self._j({"ok": True}); return
         if p.path == "/api/check":
-            c = db(); c.execute("INSERT OR REPLACE INTO user_checks(user_id,task_id,done) VALUES(?,?,?)", (uid, b["task_id"], b.get("done", 1))); c.commit(); c.close()
+            c = db(); c.execute("INSERT OR REPLACE INTO user_checks(user_id,task_id,done) VALUES(?,?,?)", (b["uid"], b["task_id"], b.get("done", 1))); c.commit(); c.close()
             self._j({"ok": True}); return
         if p.path == "/api/question":
-            c = db(); name = c.execute("SELECT username FROM accounts WHERE id=(SELECT user_id FROM sessions WHERE token=?)", (uid,)).fetchone()["username"]
-            c.execute("INSERT INTO questions(user_id,name,lang,title,body) VALUES(?,?,?,?,?)", (uid, name, b.get("lang", "zh"), b.get("title"), b.get("body", ""))); c.commit(); c.close()
+            c = db(); c.execute("INSERT INTO questions(user_id,name,lang,title,body) VALUES(?,?,?,?,?)", (b.get("uid"), b.get("name", "匿名"), b.get("lang", "zh"), b.get("title"), b.get("body", ""))); c.commit(); c.close()
             self._j({"ok": True}); return
         if p.path == "/api/answer":
-            c = db(); name = c.execute("SELECT username FROM accounts WHERE id=(SELECT user_id FROM sessions WHERE token=?)", (uid,)).fetchone()["username"]
-            c.execute("INSERT INTO answers(q_id,name,lang,text) VALUES(?,?,?,?)", (b["q_id"], name, b.get("lang", "zh"), b.get("text", ""))); c.commit(); c.close()
+            c = db(); c.execute("INSERT INTO answers(q_id,name,lang,text) VALUES(?,?,?,?)", (b["q_id"], b.get("name", "匿名"), b.get("lang", "zh"), b.get("text", ""))); c.commit(); c.close()
             self._j({"ok": True}); return
-        self._j({"error": "unknown"}, 404)
+        if p.path == "/api/product_click":
+            c = db(); c.execute("INSERT INTO clicks(product_id,user_id) VALUES(?,?)", (b.get("product_id"), b.get("uid"))); c.commit(); c.close()
+            self._j({"ok": True}); return
+        if p.path == "/api/buy_kit":
+            uid = b.get("uid"); kit_id = b.get("kit_id")
+            c = db(); kit = c.execute("SELECT id,name_en,price FROM kits WHERE id=?", (kit_id,)).fetchone(); c.close()
+            if not kit: self._j({"error": "no_kit"}); return
+            if PAYMENT_PROVIDER == "stripe" and STRIPE_SECRET_KEY:
+                try:
+                    import stripe
+                    stripe.api_key = STRIPE_SECRET_KEY
+                    session = stripe.checkout.Session.create(
+                        payment_method_types=["card"],
+                        line_items=[{"price_data": {"currency": "cny", "product_data": {"name": kit["name_en"]}, "unit_amount": int(kit["price"]) * 100}, "quantity": 1}],
+                        mode="payment",
+                        success_url=APP_BASE_URL + "/?paid=1",
+                        cancel_url=APP_BASE_URL + "/?paid=0",
+                        client_reference_id=f"{uid}:{kit_id}",
+                    )
+                    c = db(); c.execute("INSERT INTO orders(user_id,kit_id,status) VALUES(?,?,?)", (uid, kit_id, "pending")); c.commit(); c.close()
+                    self._j({"checkout_url": session.url}); return
+                except Exception as e:
+                    self._j({"error": "stripe_failed", "detail": str(e)}); return
+            c = db(); cur = c.execute("INSERT INTO orders(user_id,kit_id,status) VALUES(?,?,?)", (uid, kit_id, "paid"))
+            oid = cur.lastrowid; c.commit(); c.close(); self._j({"ok": True, "order_id": oid, "mock": True}); return
+        if p.path == "/api/book":
+            c = db(); c.execute("INSERT INTO bookings(user_id,mentor_id,slot,topic,status) VALUES(?,?,?,?,?)", (b.get("uid"), b.get("mentor_id"), b.get("slot"), b.get("topic"), "pending")); c.commit(); c.close()
+            self._j({"ok": True}); return
+        if p.path == "/api/set_school":
+            c = db(); c.execute("UPDATE users SET school_id=? WHERE id=?", (b.get("school_id"), b.get("uid"))); c.commit(); c.close()
+            self._j({"ok": True}); return
+        if p.path == "/api/school_check":
+            c = db(); c.execute("INSERT OR REPLACE INTO user_school_checks(user_id,school_task_id,done) VALUES(?,?,?)", (b.get("uid"), b.get("task_id"), b.get("done", 1))); c.commit(); c.close()
+            self._j({"ok": True}); return
+        self._j({"error": "unknown"})
 
 
 if __name__ == "__main__":
     init()
-    PORT = int(os.environ.get("PORT", 8000))
+    HOST = os.environ.get("HOST", "0.0.0.0")
+    PORT = int(os.environ.get("PORT", "8000"))
     socketserver.TCPServer.allow_reuse_address = True
-    with socketserver.TCPServer(("0.0.0.0", PORT), H) as s:
-        print(f"留学生落地包 serving on http://localhost:{PORT}")
-        s.serve_forever()
+    with http.server.ThreadingHTTPServer((HOST, PORT), H) as httpd:
+        print(f"留学生落地包 · Landing Pack  serving on http://{HOST}:{PORT}")
+        print(f"  payment_provider={PAYMENT_PROVIDER}  stripe={'on' if STRIPE_SECRET_KEY else 'off'}")
+        print(f"  db={DB}")
+        httpd.serve_forever()

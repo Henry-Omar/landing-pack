@@ -1,2 +1,6 @@
-# 留学生落地包 (Landing Pack) is stdlib-only — no pip dependencies required.
-# This file exists so PaaS buildpacks (Heroku, Render, Railway) detect Python.
+# 留学生落地包 · Landing Pack
+# The app runs on the Python standard library only (http.server + sqlite3).
+# No dependencies are required for local/dev or the mock-payment path.
+#
+# To enable REAL Stripe payments, uncomment and install:
+# stripe>=7.0
