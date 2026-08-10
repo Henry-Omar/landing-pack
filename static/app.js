@@ -18,6 +18,7 @@ const I18N = {
     kit_mine: "我的落地包", kit_buy: "购买", kit_owned: "已拥有 · 查看", kit_view: "查看", kit_download: "下载", kit_pay_hint: "模拟支付（部署时接入 Stripe / 微信支付）",
     mentor_title: "前辈预约", mentor_sub: "向同校学长学姐预约 1 对 1 咨询。",
     mentor_mine: "我的预约", mentor_book: "预约", mentor_cancel: "取消", mentor_confirm: "确认", mentor_topic_ph: "想咨询的问题", school_title: "你的学校专属清单", school_sub: "选择你的学校，查看该校同学独有的行前任务。", school_select_ph: "选择你的学校…", school_none: "选择学校后显示专属清单", dl_pack: "下载打包清单",
+ admin_title: "管理后台", admin_sub: "仅管理员可见 · 合作管理 / 内容审核 / 数据总览", admin_partners: "合作方管理（用户不可见）", admin_partners_sub: "填入你的专属返佣链接，保存即生效，用户端不变。", admin_mod: "内容审核 · 问答", admin_save: "保存", admin_del: "删除", admin_overview: "数据总览", tab_admin: "管理",
   },
   en: {
     badge: "✈ Study Abroad · Landing", hero_title: "Your first stop abroad",
@@ -38,6 +39,7 @@ const I18N = {
     kit_mine: "My Kits", kit_buy: "Buy", kit_owned: "Owned · View", kit_view: "View", kit_download: "Download", kit_pay_hint: "Mock payment (wire Stripe / WeChat Pay on deploy)",
     mentor_title: "Mentor Booking", mentor_sub: "Book a 1:1 with a senior student at your school.",
     mentor_mine: "My Bookings", mentor_book: "Book", mentor_cancel: "Cancel", mentor_confirm: "Confirm", mentor_topic_ph: "What to ask", school_title: "Your school's checklist", school_sub: "Pick your school to see tasks unique to its students.", school_select_ph: "Select your school…", school_none: "Select a school to see its checklist", dl_pack: "Download packing list",
+ admin_title: "Admin Console", admin_sub: "Admin only · partnerships / moderation / overview", admin_partners: "Partner management (hidden from users)", admin_partners_sub: "Paste your affiliate tracking links; saved instantly, user shop unchanged.", admin_mod: "Moderation · Q&A", admin_save: "Save", admin_del: "Delete", admin_overview: "Overview", tab_admin: "Admin",
   },
 };
 const CATS = ["all", "sim", "insurance", "flight", "bank", "essentials"];
@@ -68,6 +70,7 @@ function applyLang() {
   if ($("#view-shop").classList.contains("active")) renderShop();
   if ($("#view-kit").classList.contains("active")) renderKit();
   if ($("#view-mentors").classList.contains("active")) renderMentors();
+  if ($("#view-admin").classList.contains("active") && !$("#tabAdmin").classList.contains("hidden")) renderAdmin();
 }
 function setLang(l) {
   lang = l;
@@ -104,6 +107,10 @@ function enterApp() {
   document.querySelectorAll(".view").forEach((x) => x.classList.remove("active"));
   $("#view-check").classList.add("active");
   applyLang();
+  // Reveal admin tab only for the owner account (server also enforces).
+  fetch("/api/admin/check?uid=" + uid).then((x) => x.json()).then((j) => {
+    if (j.admin) { $("#tabAdmin").classList.remove("hidden"); } else { $("#tabAdmin").classList.add("hidden"); }
+  }).catch(() => $("#tabAdmin").classList.add("hidden"));
 }
 function updateAuthUI() {
   const L = I18N[lang];
@@ -375,6 +382,51 @@ function bookMentor(m) {
       fetch("/api/book", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ uid, mentor_id: m.id, slot, topic }) })
         .then(() => { renderMentors(); });
     });
+}
+// ---- admin console (owner only) ----
+async function renderAdmin() {
+  // guard: only the admin account can see this (server also enforces)
+  const chk = await (await fetch("/api/admin/check?uid=" + uid)).json().catch(() => ({}));
+  if (!chk.admin) { $("#view-admin").innerHTML = `<p class="muted">${lang === "zh" ? "无权限" : "No access"}</p>`; return; }
+  const ov = await (await fetch("/api/admin/overview?uid=" + uid)).json();
+  $("#adminOverview").innerHTML = `<div class="ovgrid">` + [
+    ["users", ov.users], ["kits", ov.kits], ["kits_sold", ov.kits_sold], ["bookings", ov.bookings],
+    ["products", ov.products], ["questions", ov.questions], ["answers", ov.answers],
+  ].map(([k, v]) => `<div class="ovcell"><b>${v}</b><span>${k}</span></div>`).join("") + `</div>`;
+  // partnerships (editable)
+  const ps = await (await fetch("/api/admin/products?uid=" + uid)).json();
+  $("#adminProducts").innerHTML = ps.map((p) => `<div class="ap">
+    <div class="apn">${esc(p.name_zh)} · ${esc(p.name_en)} <span class="apc">${esc(p.cat)}</span></div>
+    <label>${lang === "zh" ? "价格" : "Price"}<input data-f="price" data-id="${p.id}" value="${esc(p.price)}"></label>
+    <label>${lang === "zh" ? "返佣" : "Commission"}<input data-f="commission" data-id="${p.id}" value="${esc(p.commission)}"></label>
+    <label class="apurl">${lang === "zh" ? "追踪链接" : "Tracking URL"}<input data-f="url" data-id="${p.id}" value="${esc(p.url)}"></label>
+    <button class="btn-sm apsave" data-id="${p.id}">${I18N[lang].admin_save}</button>
+  </div>`).join("");
+  $("#adminProducts").querySelectorAll(".apsave").forEach((b) => {
+    b.onclick = async () => {
+      const id = b.dataset.id;
+      const row = $("#adminProducts").querySelector(`input[data-id="${id}"]`);
+      const price = $(`#adminProducts input[data-f="price"][data-id="${id}"]`).value;
+      const commission = $(`#adminProducts input[data-f="commission"][data-id="${id}"]`).value;
+      const url = $(`#adminProducts input[data-f="url"][data-id="${id}"]`).value;
+      await fetch("/api/admin/product_save", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ uid, id: +id, price, commission, url }) });
+      b.textContent = "✓";
+    };
+  });
+  // moderation: questions + answers
+  const qs = await (await fetch("/api/admin/qa?uid=" + uid)).json();
+  $("#adminQA").innerHTML = qs.length ? qs.map((q) => `<div class="aq">
+    <div class="aqh">${esc(q.name)} · ${q.lang === "zh" ? "中文" : "EN"} <span class="aqt">${esc(q.title)}</span></div>
+    ${esc(q.body)}
+    <div class="aqans">${(q.answers || []).map((a) => `<div class="aa">💬 ${esc(a.name)}: ${esc(a.text)} <button class="btn-sm adel" data-aid="${a.id}">${I18N[lang].admin_del}</button></div>`).join("")}</div>
+    <button class="btn-sm adelq" data-qid="${q.id}">${lang === "zh" ? "删除整个问题" : "Delete question"}</button>
+  </div>`).join("") : `<p class="muted">${lang === "zh" ? "暂无问答" : "No Q&A"}</p>`;
+  $("#adminQA").querySelectorAll(".adel").forEach((b) => { b.onclick = () => delQA(b.dataset.aid, null); });
+  $("#adminQA").querySelectorAll(".adelq").forEach((b) => { b.onclick = () => delQA(null, b.dataset.qid); });
+}
+async function delQA(answer_id, q_id) {
+  await fetch("/api/admin/qa_delete", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ uid, answer_id: answer_id ? +answer_id : null, q_id: q_id ? +q_id : null }) });
+  renderAdmin();
 }
 
 // ---- modal helper ----

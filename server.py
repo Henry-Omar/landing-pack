@@ -32,6 +32,10 @@ APP_BASE_URL = os.environ.get("APP_BASE_URL", "http://localhost:8000")
 # Platform take on mentor bookings (the app earns this % of each session fee)
 MENTOR_FEE_PCT = 20
 
+# Admin: only this account email can open the in-app admin console (/admin).
+# Override with env ADMIN_EMAIL on deploy.
+ADMIN_EMAIL = os.environ.get("ADMIN_EMAIL", "admin@landing.pack")
+
 DB = os.path.join(os.environ.get("DATA_DIR", os.path.dirname(__file__)), "landing.db")
 
 # In-memory login rate limit: IP -> list of failed timestamps. Cheap, no extra deps.
@@ -504,6 +508,14 @@ def fulfill_order(uid, kit_id):
     c.commit(); c.close()
 
 
+def is_admin(uid):
+    """True only if the account behind `uid` matches ADMIN_EMAIL."""
+    if not uid:
+        return False
+    c = db(); u = c.execute("SELECT email FROM users WHERE id=?", (uid,)).fetchone(); c.close()
+    return bool(u) and u["email"] == ADMIN_EMAIL
+
+
 def init():
     c = db()
     c.executescript("""
@@ -559,6 +571,9 @@ def init():
     if not c.execute("SELECT 1 FROM users WHERE email=?", ("demo@landing.pack",)).fetchone():
         c.execute("INSERT INTO users(id,email,password,name,lang) VALUES(?,?,?,?,?)",
                   ("u_demo", "demo@landing.pack", hash_pw("demo1234"), "Demo同学", "zh"))
+    if ADMIN_EMAIL and not c.execute("SELECT 1 FROM users WHERE email=?", (ADMIN_EMAIL,)).fetchone():
+        c.execute("INSERT INTO users(id,email,password,name,lang) VALUES(?,?,?,?,?)",
+                  ("u_admin", ADMIN_EMAIL, hash_pw("admin1234"), "Admin", "zh"))
     c.commit()
     c.close()
 
@@ -676,6 +691,32 @@ class H(http.server.BaseHTTPRequestHandler):
             self._j({"note_en": row["note_en"] if row else "", "note_zh": row["note_zh"] if row else ""}); return
         if p.path == "/api/health":
             self._j({"status": "ok", "provider": PAYMENT_PROVIDER, "stripe": bool(STRIPE_SECRET_KEY), "webhook": bool(STRIPE_WEBHOOK_SECRET), "wechat": bool(WECHAT_MCH_ID and WECHAT_APIV3_KEY), "alipay": bool(ALIPAY_APP_ID and ALIPAY_APP_SECRET)}); return
+        # ---- Admin console (gated: only ADMIN_EMAIL) ----
+        if p.path.startswith("/api/admin/"):
+            if not is_admin(uid):
+                self.send_response(403); self.send_header("Content-Type", "application/json"); self.end_headers()
+                self.wfile.write(json.dumps({"error": "forbidden"}).encode()); return
+            if p.path == "/api/admin/check":
+                self._j({"admin": True}); return
+            if p.path == "/api/admin/overview":
+                c = db()
+                o = {}
+                for t in ("users", "products", "kits", "orders", "mentors", "bookings", "questions", "answers"):
+                    o[t] = c.execute(f"SELECT COUNT(*) FROM {t}").fetchone()[0]
+                o["kits_sold"] = c.execute("SELECT COUNT(*) FROM orders WHERE status='paid'").fetchone()[0]
+                c.close(); self._j(o); return
+            if p.path == "/api/admin/products":
+                c = db(); rows = c.execute("SELECT id,cat,name_en,name_zh,price,commission,url FROM products ORDER BY cat,id").fetchall(); c.close()
+                self._j([dict(r) for r in rows]); return
+            if p.path == "/api/admin/qa":
+                c = db()
+                qs = c.execute("SELECT id,user_id,name,lang,title,body,created_at FROM questions ORDER BY id DESC").fetchall()
+                out = []
+                for q in qs:
+                    ans = c.execute("SELECT id,name,lang,text FROM answers WHERE q_id=?", (q["id"],)).fetchall()
+                    d = dict(q); d["answers"] = [dict(a) for a in ans]; out.append(d)
+                c.close(); self._j(out); return
+            self._j({"error": "unknown_admin"}); return
         self._j({"error": "unknown"})
 
     def do_POST(self):
@@ -832,6 +873,24 @@ class H(http.server.BaseHTTPRequestHandler):
         if p.path == "/api/school_check":
             c = db(); c.execute("INSERT OR REPLACE INTO user_school_checks(user_id,school_task_id,done) VALUES(?,?,?)", (b.get("uid"), b.get("task_id"), b.get("done", 1))); c.commit(); c.close()
             self._j({"ok": True}); return
+        # ---- Admin console POST (gated: only ADMIN_EMAIL) ----
+        if p.path.startswith("/api/admin/"):
+            uid = b.get("uid")
+            if not is_admin(uid):
+                self.send_response(403); self.send_header("Content-Type", "application/json"); self.end_headers()
+                self.wfile.write(json.dumps({"error": "forbidden"}).encode()); return
+            if p.path == "/api/admin/product_save":
+                c = db(); c.execute("UPDATE products SET url=?, commission=?, price=? WHERE id=?",
+                                    (b.get("url", ""), b.get("commission", ""), b.get("price", ""), b.get("id")))
+                c.commit(); c.close(); self._j({"ok": True}); return
+            if p.path == "/api/admin/qa_delete":
+                c = db()
+                if b.get("answer_id"):
+                    c.execute("DELETE FROM answers WHERE id=?", (b["answer_id"],))
+                else:
+                    c.execute("DELETE FROM answers WHERE q_id=?", (b["q_id"],))
+                    c.execute("DELETE FROM questions WHERE id=?", (b["q_id"],))
+                c.commit(); c.close(); self._j({"ok": True}); return
         self._j({"error": "unknown"})
 
 

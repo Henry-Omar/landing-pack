@@ -117,6 +117,17 @@
     <div id="myBookings" class="booking-list"></div>
   </main>
 
+  <main id="view-admin" class="view hidden">
+    <h2 data-i18n="admin_title">管理后台</h2>
+    <p class="muted" data-i18n="admin_sub">仅管理员可见 · 合作管理 / 内容审核 / 数据总览</p>
+    <div id="adminOverview" class="admin-overview"></div>
+    <h3 class="sec" data-i18n="admin_partners">合作方管理 (用户不可见)</h3>
+    <p class="muted" data-i18n="admin_partners_sub">在此填入你的专属返佣追踪链接，保存即生效，用户端商城不变。</p>
+    <div id="adminProducts" class="admin-products"></div>
+    <h3 class="sec" data-i18n="admin_mod">内容审核 · 问答</h3>
+    <div id="adminQA" class="admin-qa"></div>
+  </main>
+
   <nav class="tabbar">
     <button class="tab active" data-view="check">✅ <span data-i18n="tab_check">清单</span></button>
     <button class="tab" data-view="guide">🗺 <span data-i18n="tab_guide">指南</span></button>
@@ -124,6 +135,7 @@
     <button class="tab" data-view="shop">🛒 <span data-i18n="tab_shop">商城</span></button>
     <button class="tab" data-view="kit">📦 <span data-i18n="tab_kit">落地包</span></button>
     <button class="tab" data-view="mentors">🎓 <span data-i18n="tab_mentor">前辈</span></button>
+    <button class="tab hidden" id="tabAdmin" data-view="admin">🛡 <span data-i18n="tab_admin">管理</span></button>
   </nav>
 
   <script src="/static/app.js?v=6"></script>

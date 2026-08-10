@@ -47,8 +47,19 @@ Demo account: `demo@landing.pack` / `demo1234`
 | `PAYMENT_PROVIDER` | `mock` | `mock` = instant fake checkout; `stripe` = real Stripe Checkout |
 | `STRIPE_SECRET_KEY` | _(empty)_ | Required only when `PAYMENT_PROVIDER=stripe` |
 | `STRIPE_PUBLISHABLE_KEY` | _(empty)_ | Frontend key (for future inline Stripe Elements) |
+| `ADMIN_EMAIL` | `admin@landing.pack` | The ONLY account that can open the in-app Admin console (`/admin`) |
 
-Copy `.env.example` to `.env` and fill in as needed.
+## Admin console (owner only)
+A dedicated **Admin** tab appears in the app **only** when you log in as `ADMIN_EMAIL`.
+It is invisible to normal users and every endpoint is server-gated (non-admins get `403`).
+Inside you can:
+- **Overview** — live counts (users, kits sold, bookings, products, Q&A).
+- **Partner management** — edit each affiliate product's price / commission / tracking URL.
+  Saved instantly; the public Shop updates but users never see the edit screen.
+- **Moderation** — list all Q&A, delete bad answers or whole questions.
+
+Default admin login: `admin@landing.pack` / `admin1234` (change the password after first login;
+override `ADMIN_EMAIL` via env to use your own account).
 
 ## Deploy (one click)
 
