@@ -157,6 +157,22 @@ async function renderChecklist() {
   }).join("");
   $("#checkList").innerHTML = html;
   $("#checkProgress").textContent = (lang === "zh" ? "已完成 " : "Done ") + done + "/" + tasks.length;
+  // Conversion nudge: engaged user (>=3 done) who hasn't bought a Kit -> suggest tripwire
+  const nudge = $("#kitNudge");
+  if (nudge && done >= 3 && uid) {
+    fetch("/api/my_kits?uid=" + uid).then((x) => x.json()).then((mine) => {
+      if (!mine.length) {
+        nudge.classList.remove("hidden");
+        nudge.innerHTML = lang === "zh"
+          ? "进度不错！怕漏签证材料？<b>签证不慌包 ¥9</b> 一键照着打勾 → <button class=\"btn-sm\" onclick=\"location.hash='kit'\">去看看</button>"
+          : "Good progress! Scared of missing visa docs? <b>Visa-No-Panic Kit ¥9</b> → <button class=\"btn-sm\" onclick=\"location.hash='kit'\">view</button>";
+      } else {
+        nudge.classList.add("hidden");
+      }
+    }).catch(() => nudge.classList.add("hidden"));
+  } else if (nudge) {
+    nudge.classList.add("hidden");
+  }
   $("#checkList").querySelectorAll("input").forEach((cb) => {
     cb.onchange = async () => {
       await fetch("/api/check", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ uid, task_id: +cb.dataset.id, done: cb.checked ? 1 : 0 }) });
@@ -335,6 +351,7 @@ async function renderMentors() {
     <div class="ms">${esc(m["school_" + lang])}</div>
     <div class="me">${esc(m.expertise)}</div>
     <div class="mb">${esc(m["bio_" + lang])}</div>
+    <div class="mfee">${lang === "zh" ? "平台抽成 " + m.fee_pct + "%（¥" + m.platform_fee + "）· 学长得 ¥" + (m.price - m.platform_fee) : "Platform fee " + m.fee_pct + "% (¥" + m.platform_fee + ") · mentor gets ¥" + (m.price - m.platform_fee)}</div>
     <button class="btn-sm" data-id="${m.id}">${I18N[lang].mentor_book}</button>
   </div>`).join("");
   $("#mentorList").querySelectorAll("button").forEach((b) => { b.onclick = () => bookMentor(ms.find((x) => x.id == b.dataset.id)); });

@@ -29,6 +29,9 @@ ALIPAY_APP_SECRET = os.environ.get("ALIPAY_APP_SECRET", "")
 ALIPAY_PUBLIC_KEY = os.environ.get("ALIPAY_PUBLIC_KEY", "")
 APP_BASE_URL = os.environ.get("APP_BASE_URL", "http://localhost:8000")
 
+# Platform take on mentor bookings (the app earns this % of each session fee)
+MENTOR_FEE_PCT = 20
+
 DB = os.path.join(os.environ.get("DATA_DIR", os.path.dirname(__file__)), "landing.db")
 
 # In-memory login rate limit: IP -> list of failed timestamps. Cheap, no extra deps.
@@ -150,16 +153,28 @@ WIKI = {
     ],
 }
 
+# Affiliate shop — partner slots. Replace each `url` with YOUR tracked affiliate
+# link (from the partner's Affiliates/Partners program). `commission` is shown to users
+# as "we earn X, no extra cost to you". You sign up for these programs (see DEPLOY-CN.md).
 PRODUCTS = [
-    ("sim", "Airalo eSIM", "Airalo eSIM 全球流量", "Instant data on landing, no SIM swap.", "落地即用，免换卡，覆盖180+国家。", "from $4.5/GB", "up to $3/order", "https://www.airalo.com"),
-    ("sim", "Holafly eSIM", "Holafly 留学生 eSIM", "Unlimited plans for students.", "留学生无限流量套餐，按天计费。", "from $5.9/day", "up to $6/order", "https://www.holafly.com"),
-    ("insurance", "AXA Student", "AXA 留学生医疗险", "Worldwide cover + repatriation.", "全球医疗+遣返保障，符合签证要求。", "from ¥1200/yr", "5% commission", "https://www.axa.com"),
-    ("insurance", "Allianz Care", "Allianz Care 留学险", "Flexible international health.", "灵活国际健康险，可按月付。", "from €39/mo", "5% commission", "https://www.allianzcare.com"),
-    ("flight", "Skyscanner", "Skyscanner 机票比价", "Compare millions of flights.", "比价全网机票，学生优惠提醒。", "free", "affiliate", "https://www.skyscanner.com"),
-    ("bank", "Wise", "Wise 多币种账户", "Hold 40+ currencies, referral bonus.", "多币种账户，推荐返现。", "free", "£50/referral", "https://wise.com"),
-    ("bank", "Revolut", "Revolut 学生账户", "No-fee FX for students.", "学生免手续费换汇。", "free", "€10/referral", "https://www.revolut.com"),
-    ("essentials", "Travel Adapter", "转换插头 (Amazon)", "Must-have for appliances.", "电器必备转换插头。", "¥39", "6% commission", "https://www.amazon.com"),
-    ("essentials", "Luggage Scale", "便携行李秤 (Amazon)", "Avoid overweight fees.", "避免超重罚款。", "¥29", "6% commission", "https://www.amazon.com"),
+    ("sim", "Airalo eSIM", "Airalo eSIM 全球流量", "Instant data on landing, no SIM swap. 180+ countries.", "落地即用，免换卡，覆盖180+国家。",
+     "from $4.5/GB", "up to $3/order", "https://www.airalo.com/?ref=YOUR_AIRALO_ID"),
+    ("sim", "Holafly eSIM", "Holafly 留学生 eSIM", "Unlimited plans for students, daily pricing.", "留学生无限流量套餐，按天计费。",
+     "from $5.9/day", "up to $6/order", "https://www.holafly.com/?ref=YOUR_HOLAFLY_ID"),
+    ("insurance", "AXA Student", "AXA 留学生医疗险", "Worldwide cover + repatriation, meets visa rules.", "全球医疗+遣返保障，符合签证要求。",
+     "from ¥1200/yr", "5% commission", "https://www.axa.com/partners?ref=YOUR_AXA_ID"),
+    ("insurance", "Allianz Care", "Allianz Care 留学险", "Flexible international health, monthly.", "灵活国际健康险，可按月付。",
+     "from €39/mo", "5% commission", "https://www.allianzcare.com/partners?ref=YOUR_ALLIANZ_ID"),
+    ("flight", "Skyscanner", "Skyscanner 机票比价", "Compare millions of flights, price alerts.", "比价全网机票，学生优惠提醒。",
+     "free", "affiliate", "https://www.skyscanner.com/?ref=YOUR_SKYSCANNER_ID"),
+    ("bank", "Wise", "Wise 多币种账户", "Hold 40+ currencies, referral bonus.", "多币种账户，推荐返现。",
+     "free", "£50/referral", "https://wise.com/invite/YOUR_WISE_ID"),
+    ("bank", "Revolut", "Revolut 学生账户", "No-fee FX for students.", "学生免手续费换汇。",
+     "free", "€10/referral", "https://www.revolut.com/?ref=YOUR_REVOLUT_ID"),
+    ("essentials", "Travel Adapter", "转换插头 (Amazon)", "Must-have for appliances abroad.", "电器必备转换插头。",
+     "¥39", "6% commission", "https://www.amazon.com/?tag=YOUR_AMAZON_ID"),
+    ("essentials", "Luggage Scale", "便携行李秤 (Amazon)", "Avoid overweight fees.", "避免超重罚款。",
+     "¥29", "6% commission", "https://www.amazon.com/?tag=YOUR_AMAZON_ID"),
 ]
 
 KIT1_ZH = """# 全能落地包 Pro
@@ -243,15 +258,61 @@ KIT2_EN = """# Lease Safety Kit
 - Photo on move-in
 - Keep end-of-lease cleaning proof"""
 
+KIT3_ZH = """# 签证不慌包（¥9 入门）
+
+## 5国签证材料清单
+- 英国：CAS、资金证明（连续28天）、TB检测、ATAS（如适用）
+- 美国：I-20、SEVIS费、DS-160、面签预约
+- 澳洲：CoE、GTE陈述、体检、无犯罪
+- 加拿大：LOA、GIC担保金、生物信息、PAL（如适用）
+- 日本：在留资格认定、经费支付书、照片规格
+
+## 时间线（建议）
+- 入学前 6 个月：定校+存资金证明
+- 入学前 3 个月：递签+体检
+- 入学前 6 周：等结果+订机票
+
+## 拒签红flag
+- 资金证明天数不够
+- 学习计划（GTE/Study Plan）空泛
+- 递签时间过晚导致来不及
+
+照着打勾，不漏一项。"""
+
+KIT3_EN = """# Visa-No-Panic Kit (¥9 intro)
+
+## Document checklist — 5 countries
+- UK: CAS, 28-day funds proof, TB test, ATAS if applicable
+- US: I-20, SEVIS fee, DS-160, interview
+- AU: CoE, GTE statement, medical, police check
+- CA: LOA, GIC deposit, biometrics, PAL if applicable
+- JP: COE, financial sponsor letter, photo spec
+
+## Timeline (recommended)
+- 6 months out: confirm school + fund proof
+- 3 months out: apply + medical
+- 6 weeks out: get result + book flight
+
+## Rejection red-flags
+- Funds proof too short
+- Vague study plan (GTE)
+- Applied too late
+
+Tick every box — miss nothing."""
+
 KITS = [
-    ("全能落地包 Pro", "All-in-One Landing Kit Pro",
-     "5国签证清单+租房合同审核模板+抵达生存手册+打包清单（中英双语）。",
-     "Visa checklists for 5 countries + lease-review template + arrival guide + packing list (bilingual).",
-     39, KIT1_EN, KIT1_ZH),
+    ("签证不慌包", "Visa-No-Panic Kit",
+     "怕漏交材料被拒签？5国（英/美/澳/加/日）签证材料清单+时间线+拒签红flag，照着打勾即可。",
+     "Scared of a rejected visa? Document checklist + timeline + rejection red-flags for UK/US/AU/CA/JP. Tick and go.",
+     9, KIT3_EN, KIT3_ZH),
     ("租房避坑包", "Lease Safety Kit",
-     "各国租房红flag清单+押金保护指南+看房检查表。",
-     "Red-flag checklist per country + deposit protection + viewing checklist.",
+     "怕租到坑房、押金拿不回？各国租房红flag清单+押金保护指南+看房检查表。",
+     "Scared of a scam lease or lost deposit? Red-flag checklist per country + deposit protection + viewing checklist.",
      19, KIT2_EN, KIT2_ZH),
+    ("全能落地包 Pro", "All-in-One Landing Kit Pro",
+     "签证+租房+抵达生存+打包，一条龙双语。最省心的一站式落地方案。",
+     "Visa + lease + arrival survival + packing, all bilingual. The done-for-you landing bundle.",
+     39, KIT1_EN, KIT1_ZH),
 ]
 
 # Seed Q&A (genuine bilingual content so the Q&A tab isn't empty on first run)
@@ -590,7 +651,11 @@ class H(http.server.BaseHTTPRequestHandler):
             self._j({"content_en": r["content_en"], "content_zh": r["content_zh"]}); return
         if p.path == "/api/mentors":
             c = db(); rows = c.execute("SELECT id,name,school_en,school_zh,bio_en,bio_zh,expertise,price FROM mentors ORDER BY id").fetchall(); c.close()
-            self._j([dict(r) for r in rows]); return
+            out = [dict(r) for r in rows]
+            for o in out:
+                o["fee_pct"] = MENTOR_FEE_PCT
+                o["platform_fee"] = round(o["price"] * MENTOR_FEE_PCT / 100)
+            self._j(out); return
         if p.path == "/api/my_bookings":
             c = db(); rows = c.execute("SELECT b.id,m.name,m.school_en,m.school_zh,b.slot,b.topic,b.status FROM bookings b JOIN mentors m ON m.id=b.mentor_id WHERE b.user_id=?", (uid,)).fetchall(); c.close()
             self._j([dict(r) for r in rows]); return
