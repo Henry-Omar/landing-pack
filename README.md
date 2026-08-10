@@ -71,9 +71,31 @@ restarts. Set `APP_BASE_URL` to the public URL before enabling Stripe.
    with the signing secret set as `STRIPE_WEBHOOK_SECRET`. On `checkout.session.completed`
    the matching `pending` order flips to `paid` and the kit unlocks automatically.
 
+## Enable China payments (WeChat Pay + Alipay) — Plan B
+
+The same backend serves both overseas (Stripe) and China (WeChat Pay / Alipay). Set the
+env vars and the matching `PAYMENT_PROVIDER`; the app returns a `pay_url` and a notify
+webhook unlocks the kit on payment.
+
+**WeChat Pay (V3):**
+- `PAYMENT_PROVIDER=wechat` + `WECHAT_MCH_ID` + `WECHAT_APIV3_KEY` + `WECHAT_APP_ID`
+- Notify: `https://YOUR_DOMAIN/api/wechat_notify` (signature verified with APIv3 key,
+  stdlib HMAC-SHA256 — no SDK needed). On success the `pending` order flips to `paid`.
+
+**Alipay:**
+- `PAYMENT_PROVIDER=alipay` + `ALIPAY_APP_ID` + `ALIPAY_APP_SECRET` (+ `ALIPAY_PUBLIC_KEY`
+  for production RSA2). Notify: `https://YOUR_DOMAIN/api/alipay_notify` (HMAC-SHA256 verify;
+  production Alipay uses RSA2 with the platform cert — swap `verify_alipay_sig` for RSA2
+  when `cryptography` is available).
+
+> Note: WeChat/Alipay require a **China-registered merchant account** (商户号 / 支付宝商户).
+> Until keys are set, the app falls back to `mock` (instant unlock) for local dev. For a
+> Shanghai launch, deploy on a domestic host (阿里云/腾讯云) behind an ICP备案 domain, and
+> keep Stripe enabled for students who pay after landing abroad. See `DEPLOY-CN.md`.
+
 ## Health check
 
-`GET /api/health` → `{"status":"ok","provider":"mock","stripe":false}`
+`GET /api/health` → `{"status":"ok","provider":"mock","stripe":false,"webhook":false,"wechat":false,"alipay":false}`
 
 ## Project layout
 

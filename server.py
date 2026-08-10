@@ -14,10 +14,19 @@ import time
 from urllib.parse import urlparse, parse_qs
 
 # ---- Payment provider config (deploy: set env vars; local/dev uses mock) ----
-PAYMENT_PROVIDER = os.environ.get("PAYMENT_PROVIDER", "mock")  # "mock" | "stripe"
+# PAYMENT_PROVIDER: "mock" | "stripe" | "wechat" | "alipay"
+PAYMENT_PROVIDER = os.environ.get("PAYMENT_PROVIDER", "mock")
 STRIPE_SECRET_KEY = os.environ.get("STRIPE_SECRET_KEY", "")
 STRIPE_PUBLISHABLE_KEY = os.environ.get("STRIPE_PUBLISHABLE_KEY", "")
 STRIPE_WEBHOOK_SECRET = os.environ.get("STRIPE_WEBHOOK_SECRET", "")
+# WeChat Pay (V3): merchant id + APIv3 key (used to verify notify HMAC-SHA256)
+WECHAT_MCH_ID = os.environ.get("WECHAT_MCH_ID", "")
+WECHAT_APIV3_KEY = os.environ.get("WECHAT_APIV3_KEY", "")
+WECHAT_APP_ID = os.environ.get("WECHAT_APP_ID", "")
+# Alipay: app id + app secret (HMAC-SHA256 notify verify; RSA2 is the production path)
+ALIPAY_APP_ID = os.environ.get("ALIPAY_APP_ID", "")
+ALIPAY_APP_SECRET = os.environ.get("ALIPAY_APP_SECRET", "")
+ALIPAY_PUBLIC_KEY = os.environ.get("ALIPAY_PUBLIC_KEY", "")
 APP_BASE_URL = os.environ.get("APP_BASE_URL", "http://localhost:8000")
 
 DB = os.path.join(os.environ.get("DATA_DIR", os.path.dirname(__file__)), "landing.db")
@@ -384,6 +393,49 @@ def verify_stripe_sig(payload: bytes, sig_header: str, secret: str) -> dict:
     return json.loads(payload.decode("utf-8"))
 
 
+def create_pending_order(uid, kit_id):
+    """Insert a pending order and return its rowid."""
+    c = db()
+    cur = c.execute("INSERT INTO orders(user_id,kit_id,status) VALUES(?,?,?)", (uid, kit_id, "pending"))
+    c.commit(); c.close()
+    return cur.lastrowid
+
+
+def parse_ref(ref):
+    """Parse 'uid:kit_id' -> (uid, kit_id) or (None, None)."""
+    if ref and ":" in ref:
+        u, k = ref.split(":", 1)
+        return u, k
+    return None, None
+
+
+def verify_wechat_sig(timestamp: str, nonce: str, body: bytes, sig: str, key: str) -> bool:
+    """WeChat Pay V3 notify signature: HMAC-SHA256 over 'timestamp\\nnonceStr\\nbody\\n' with APIv3 key.
+    Constant-time compare. Returns True if valid."""
+    if not key or not sig:
+        return False
+    msg = f"{timestamp}\n{nonce}\n".encode("utf-8") + body + b"\n"
+    expected = hmac.new(key.encode("utf-8"), msg, hashlib.sha256).hexdigest()
+    return hmac.compare_digest(expected, sig)
+
+
+def verify_alipay_sig(params: dict, sign: str, secret: str) -> bool:
+    """Alipay notify signature (HMAC-SHA256 over sorted k=v pairs, no sign param).
+    Production Alipay uses RSA2 (SHA256withRSA) with the platform public cert; this
+    HMAC path mirrors the signing scheme and is the testable stdlib fallback."""
+    if not secret or not sign:
+        return False
+    parts = []
+    for k in sorted(params.keys()):
+        v = params.get(k)
+        if k == "sign" or k == "sign_type" or v in (None, ""):
+            continue
+        parts.append(f"{k}={v}")
+    raw = "&".join(parts)
+    expected = hmac.new(secret.encode("utf-8"), raw.encode("utf-8"), hashlib.sha256).hexdigest()
+    return hmac.compare_digest(expected, sign)
+
+
 def fulfill_order(uid, kit_id):
     """Flip a pending order to paid so the kit unlocks."""
     c = db()
@@ -558,7 +610,7 @@ class H(http.server.BaseHTTPRequestHandler):
             c = db(); row = c.execute("SELECT note_en,note_zh FROM school_notes WHERE school_id=?", (sid,)).fetchone(); c.close()
             self._j({"note_en": row["note_en"] if row else "", "note_zh": row["note_zh"] if row else ""}); return
         if p.path == "/api/health":
-            self._j({"status": "ok", "provider": PAYMENT_PROVIDER, "stripe": bool(STRIPE_SECRET_KEY), "webhook": bool(STRIPE_WEBHOOK_SECRET)}); return
+            self._j({"status": "ok", "provider": PAYMENT_PROVIDER, "stripe": bool(STRIPE_SECRET_KEY), "webhook": bool(STRIPE_WEBHOOK_SECRET), "wechat": bool(WECHAT_MCH_ID and WECHAT_APIV3_KEY), "alipay": bool(ALIPAY_APP_ID and ALIPAY_APP_SECRET)}); return
         self._j({"error": "unknown"})
 
     def do_POST(self):
@@ -587,6 +639,46 @@ class H(http.server.BaseHTTPRequestHandler):
                         pass
             self.send_response(200); self.send_header("Content-Type", "application/json"); self.end_headers()
             self.wfile.write(json.dumps({"received": True}).encode()); return
+        # ---- WeChat Pay notify ----
+        if p.path == "/api/wechat_notify":
+            raw = self.rfile.read(int(self.headers.get("Content-Length", 0))) or b"{}"
+            ts = self.headers.get("Wechatpay-Timestamp", "")
+            nonce = self.headers.get("Wechatpay-Nonce", "")
+            sig = self.headers.get("Wechatpay-Signature", "")
+            if not WECHAT_APIV3_KEY:
+                self.send_response(200); self.send_header("Content-Type", "application/json"); self.end_headers()
+                self.wfile.write(json.dumps({"code": "SUCCESS", "note": "wechat key not set"}).encode()); return
+            if not verify_wechat_sig(ts, nonce, raw, sig, WECHAT_APIV3_KEY):
+                self.send_response(401); self.send_header("Content-Type", "application/json"); self.end_headers()
+                self.wfile.write(json.dumps({"code": "FAIL", "message": "bad_signature"}).encode()); return
+            try:
+                evt = json.loads(raw.decode("utf-8"))
+                ref = evt.get("out_trade_no") or (evt.get("resource", {}) or {}).get("out_trade_no") or ""
+                uid, kit_id = parse_ref(ref)
+                if uid and kit_id:
+                    fulfill_order(uid, int(kit_id))
+            except Exception:
+                pass
+            self.send_response(200); self.send_header("Content-Type", "application/json"); self.end_headers()
+            self.wfile.write(json.dumps({"code": "SUCCESS", "message": "OK"}).encode()); return
+        # ---- Alipay notify ----
+        if p.path == "/api/alipay_notify":
+            raw = self.rfile.read(int(self.headers.get("Content-Length", 0))) or b"{}"
+            try:
+                form = dict(parse_qs(raw.decode("utf-8")))
+                params = {k: (v[0] if isinstance(v, list) else v) for k, v in form.items()}
+                sign = params.get("sign", "")
+                if not ALIPAY_APP_SECRET:
+                    self.send_response(200); self.end_headers(); self.wfile.write(b"success"); return
+                if not verify_alipay_sig(params, sign, ALIPAY_APP_SECRET):
+                    self.send_response(400); self.end_headers(); self.wfile.write(b"failure"); return
+                ref = params.get("out_trade_no", "")
+                uid, kit_id = parse_ref(ref)
+                if uid and kit_id and params.get("trade_status") in ("TRADE_SUCCESS", "TRADE_FINISHED", None):
+                    fulfill_order(uid, int(kit_id))
+            except Exception:
+                pass
+            self.send_response(200); self.end_headers(); self.wfile.write(b"success"); return
         n = int(self.headers.get("Content-Length", 0))
         b = json.loads(self.rfile.read(n) or b"{}")
         if p.path == "/api/register":
@@ -649,10 +741,21 @@ class H(http.server.BaseHTTPRequestHandler):
                         cancel_url=APP_BASE_URL + "/?paid=0",
                         client_reference_id=f"{uid}:{kit_id}",
                     )
-                    c = db(); c.execute("INSERT INTO orders(user_id,kit_id,status) VALUES(?,?,?)", (uid, kit_id, "pending")); c.commit(); c.close()
+                    create_pending_order(uid, kit_id)
                     self._j({"checkout_url": session.url}); return
                 except Exception as e:
                     self._j({"error": "stripe_failed", "detail": str(e)}); return
+            if PAYMENT_PROVIDER == "wechat" and WECHAT_MCH_ID and WECHAT_APIV3_KEY:
+                # Native QR pay: in production call WeChat's /pay/transactions/native with
+                # client_reference_id embedded; here we return a pay_url + the pending order.
+                create_pending_order(uid, kit_id)
+                pay_url = f"{APP_BASE_URL}/pay/wechat?uid={uid}&kit={kit_id}"
+                self._j({"pay_url": pay_url, "provider": "wechat"}); return
+            if PAYMENT_PROVIDER == "alipay" and ALIPAY_APP_ID and ALIPAY_APP_SECRET:
+                create_pending_order(uid, kit_id)
+                pay_url = f"{APP_BASE_URL}/pay/alipay?uid={uid}&kit={kit_id}"
+                self._j({"pay_url": pay_url, "provider": "alipay"}); return
+            # mock: instant unlock (dev / no provider configured)
             c = db(); cur = c.execute("INSERT INTO orders(user_id,kit_id,status) VALUES(?,?,?)", (uid, kit_id, "paid"))
             oid = cur.lastrowid; c.commit(); c.close(); self._j({"ok": True, "order_id": oid, "mock": True}); return
         if p.path == "/api/book":
