@@ -404,16 +404,17 @@ async function renderAdmin() {
   if (!chk.admin) { $("#view-admin").innerHTML = `<p class="muted">${lang === "zh" ? "无权限" : "No access"}</p>`; return; }
   const ov = await (await fetch("/api/admin/overview?uid=" + uid)).json();
   $("#adminOverview").innerHTML = `<div class="ovgrid">` + [
-    ["users", ov.users], ["kits", ov.kits], ["kits_sold", ov.kits_sold], ["bookings", ov.bookings],
-    ["products", ov.products], ["questions", ov.questions], ["answers", ov.answers],
+    ["users", ov.users], ["kits_sold", ov.kits_sold], ["clicks", ov.clicks], ["bookings", ov.bookings],
+    ["kit_revenue ¥", ov.kit_revenue], ["mentor_revenue ¥", ov.mentor_revenue], ["products", ov.products], ["questions", ov.questions],
   ].map(([k, v]) => `<div class="ovcell"><b>${v}</b><span>${k}</span></div>`).join("") + `</div>`;
   // partnerships (editable)
   const ps = await (await fetch("/api/admin/products?uid=" + uid)).json();
   $("#adminProducts").innerHTML = ps.map((p) => `<div class="ap">
-    <div class="apn">${esc(p.name_zh)} · ${esc(p.name_en)} <span class="apc">${esc(p.cat)}</span></div>
+    <div class="apn">${esc(p.name_zh)} · ${esc(p.name_en)} <span class="apc">${esc(p.cat)}</span> ${p.url.indexOf("YOUR_") >= 0 ? '<span class="apwarn">待填链接</span>' : '<span class="apok">已上线</span>'}</div>
     <label>${lang === "zh" ? "价格" : "Price"}<input data-f="price" data-id="${p.id}" value="${esc(p.price)}"></label>
     <label>${lang === "zh" ? "返佣" : "Commission"}<input data-f="commission" data-id="${p.id}" value="${esc(p.commission)}"></label>
     <label class="apurl">${lang === "zh" ? "追踪链接" : "Tracking URL"}<input data-f="url" data-id="${p.id}" value="${esc(p.url)}"></label>
+    <div class="apmeta">${lang === "zh" ? "点击量" : "Clicks"}: <b>${p.clicks || 0}</b></div>
     <button class="btn-sm apsave" data-id="${p.id}">${I18N[lang].admin_save}</button>
   </div>`).join("");
   $("#adminProducts").querySelectorAll(".apsave").forEach((b) => {

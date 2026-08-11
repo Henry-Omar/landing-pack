@@ -704,9 +704,14 @@ class H(http.server.BaseHTTPRequestHandler):
                 for t in ("users", "products", "kits", "orders", "mentors", "bookings", "questions", "answers"):
                     o[t] = c.execute(f"SELECT COUNT(*) FROM {t}").fetchone()[0]
                 o["kits_sold"] = c.execute("SELECT COUNT(*) FROM orders WHERE status='paid'").fetchone()[0]
+                o["clicks"] = c.execute("SELECT COUNT(*) FROM clicks").fetchone()[0]
+                # mentor revenue = sum(platform_fee) over confirmed/paid bookings (20% of price)
+                o["mentor_revenue"] = round(c.execute("SELECT COALESCE(SUM(m.price),0) FROM bookings b JOIN mentors m ON m.id=b.mentor_id").fetchone()[0] * MENTOR_FEE_PCT / 100)
+                # kit revenue (rough, using listed prices of paid orders)
+                o["kit_revenue"] = c.execute("SELECT COALESCE(SUM(k.price),0) FROM orders o2 JOIN kits k ON k.id=o2.kit_id WHERE o2.status='paid'").fetchone()[0]
                 c.close(); self._j(o); return
             if p.path == "/api/admin/products":
-                c = db(); rows = c.execute("SELECT id,cat,name_en,name_zh,price,commission,url FROM products ORDER BY cat,id").fetchall(); c.close()
+                c = db(); rows = c.execute("SELECT id,cat,name_en,name_zh,price,commission,url,(SELECT COUNT(*) FROM clicks cl WHERE cl.product_id=products.id) AS clicks FROM products ORDER BY cat,id").fetchall(); c.close()
                 self._j([dict(r) for r in rows]); return
             if p.path == "/api/admin/qa":
                 c = db()
