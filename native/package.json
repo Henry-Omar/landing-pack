@@ -1,0 +1,24 @@
+{
+  "name": "landing-pack-native",
+  "version": "1.0.0",
+  "description": "留学生落地包 / Landing Pack — native iOS + Android app (Capacitor wrapper over the web app)",
+  "private": true,
+  "scripts": {
+    "build:web": "echo 'Web assets are served by ../server.py; for the native shell we copy ../static + a tiny bootstrap.' && node copy-web.js",
+    "cap:sync": "npx cap sync",
+    "cap:build:ios": "npx cap build ios",
+    "cap:build:android": "npx cap build android",
+    "open:ios": "npx cap open ios",
+    "open:android": "npx cap open android"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "^6.1.2",
+    "@capacitor/core": "^6.1.2",
+    "@capacitor/android": "^6.1.2",
+    "@capacitor/ios": "^6.1.2",
+    "@capacitor/splash-screen": "^6.0.2",
+    "@capacitor/status-bar": "^6.0.2",
+    "@capacitor/keyboard": "^6.0.2",
+    "typescript": "^5.5.4"
+  }
+}

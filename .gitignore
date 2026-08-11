@@ -8,3 +8,9 @@ app.db-shm
 __pycache__/
 *.pyc
 .env
+# Native app (Capacitor) build artifacts
+native/node_modules/
+native/www/
+native/ios/App/App/public/
+native/android/app/build/
+native/android/.gradle/

@@ -1,3 +1,17 @@
+// Native bridge: route /api/* calls to the configured backend (window.API_BASE),
+// so the bundled app talks to YOUR server, not the local file origin.
+(function () {
+  const BASE = (typeof window !== "undefined" && window.API_BASE) || "";
+  const _orig = window.fetch ? window.fetch.bind(window) : null;
+  if (_orig) {
+    window.fetch = function (input, init) {
+      if (typeof input === "string" && input.indexOf("/api/") === 0) {
+        return _orig(BASE + input, init);
+      }
+      return _orig(input, init);
+    };
+  }
+})();
 const I18N = {
   zh: {
     badge: "✈ 留学落地 · Study Abroad", hero_title: "你的留学落地第一站",

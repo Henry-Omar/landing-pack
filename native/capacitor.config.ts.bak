@@ -1,0 +1,33 @@
+import { CapacitorConfig } from '@capacitor/cli';
+
+// App ID + name. Bundle ID = com.landingpack.app (change in your developer account if desired).
+// Web assets are bundled locally (../static) so the app works offline and reads as a real app.
+// The backend API base URL is read from the env at build time (see copy-web.js / build-ios.sh).
+const API_BASE = process.env.API_BASE || 'http://localhost:8000';
+
+const config: CapacitorConfig = {
+  appId: 'com.landingpack.app',
+  appName: 'Landing Pack',
+  webDir: 'www',
+  server: {
+    // Local bundled assets. androidScheme kept default.
+    androidScheme: 'https',
+  },
+  plugins: {
+    SplashScreen: {
+      launchShowDuration: 1500,
+      backgroundColor: '#0a0f1f',
+      androidScaleType: 'CENTER_CROP',
+      splashFullScreen: true,
+      splashImmersive: true,
+    },
+    StatusBar: {
+      style: 'DARK',
+      backgroundColor: '#0a0f1f',
+    },
+    Keyboard: { resize: 'native' },
+  },
+};
+
+// Expose API base to the bundled web app via a generated config file.
+export const API_BASE_URL = API_BASE;
