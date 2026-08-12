@@ -97,6 +97,32 @@ npx cap sync
 - Both stores review (~1–2 days to weeks). Fix anything they flag.
 - iOS may question a webview app — our app is a real toolkit (original content), so it passes.
 
+### C5. China Android stores (华为 / 小米 / OPPO / vivo) — REQUIRED for mainland users
+Google Play is **blocked in mainland China**, so Chinese Android users cannot install from it.
+You must also publish to the local Chinese app stores. They all consume the **same Android
+`.aab`/`.apk`** we built in C1 (no extra code), but each has its own console + review.
+
+| Store | Developer console | Notes |
+|---|---|---|
+| 华为 Huawei AppGallery | https://developer.huawei.com/consumer/en/ | Largest in China. Needs Huawei Developer account (free). Upload `.aab`. May need HarmonyOS NEXT check later. |
+| 小米 Xiaomi GetApps | https://dev.mi.com/ | Xiaomi account; upload `.apk`/`.aab`. |
+| OPPO / OnePlus | https://open.oppomobile.com/ | OPPO account; `.apk`. |
+| vivo | https://dev.vivo.com.cn/ | vivo account; `.apk`. |
+| 腾讯应用宝 (Tencent MyApp) | https://open.qq.com/ | Optional but high reach; `.apk`. |
+
+**Steps (same for each):**
+1. Register a **developer account** (real-name + often a small fee ¥0–¥600 one-time per store).
+2. Create an app → fill name (留学生落地包 / Landing Pack), category **教育/Education**,
+   description (reuse `native/STORE_LISTING.md`), screenshots, privacy policy URL.
+3. Upload the signed build from C1 (`Build → Generate Signed Bundle/APK` in Android Studio).
+4. Submit for review (~1–7 days). They may ask for **《计算机软件著作权》 (software copyright)**
+   or ICP备案 number — have your Ali Cloud 备案号 ready.
+5. Once approved, Chinese users find it in their phone's store app.
+
+**Tip:** Keep the **same package name `com.landingpack.app`** and version across all stores so
+updates are consistent. The web app (H5) is also fine as a fallback QR link for any store
+that rejects it.
+
 ---
 
 ## PHASE D — Launch
