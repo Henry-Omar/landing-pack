@@ -34,7 +34,7 @@ const I18N = {
     mentor_mine: "我的预约", mentor_book: "预约", mentor_cancel: "取消", mentor_confirm: "确认", mentor_topic_ph: "想咨询的问题", school_title: "你的学校专属清单", school_sub: "选择你的学校，查看该校同学独有的行前任务。", school_select_ph: "选择你的学校…", school_none: "选择学校后显示专属清单", dl_pack: "下载打包清单",
  admin_title: "管理后台", admin_sub: "仅管理员可见 · 合作管理 / 内容审核 / 数据总览", admin_partners: "合作方管理（用户不可见）", admin_partners_sub: "填入你的专属返佣链接，保存即生效，用户端不变。", admin_mod: "内容审核 · 问答", admin_save: "保存", admin_del: "删除", admin_overview: "数据总览", tab_admin: "管理", tab_sub: "会员",
  sub_title: "会员订阅", sub_sub: "升级 PRO，解锁全部技能", sub_month: "月付 ¥29", sub_year: "年付 ¥199（省 72）", sub_upgrade: "升级 PRO", sub_current: "当前会员", sub_free: "免费用户", sub_pro_badge: "PRO", sub_perks: "PRO 专属：全部落地包免费、专属清单、前辈预约 9 折、问答优先、无广告", sub_cancel: "会员到期", sub_manage: "管理订阅",
- pro_only: "PRO 专属", pro_unlock: "升级 PRO 解锁"
+ pro_only: "PRO 专属", pro_unlock: "升级 PRO 解锁", coming_soon: "即将上线",
   },
   en: {
     badge: "✈ Study Abroad · Landing", hero_title: "Your first stop abroad",
@@ -57,10 +57,13 @@ const I18N = {
     mentor_mine: "My Bookings", mentor_book: "Book", mentor_cancel: "Cancel", mentor_confirm: "Confirm", mentor_topic_ph: "What to ask", school_title: "Your school's checklist", school_sub: "Pick your school to see tasks unique to its students.", school_select_ph: "Select your school…", school_none: "Select a school to see its checklist", dl_pack: "Download packing list",
  admin_title: "Admin Console", admin_sub: "Admin only · partnerships / moderation / overview", admin_partners: "Partner management (hidden from users)", admin_partners_sub: "Paste your affiliate tracking links; saved instantly, user shop unchanged.", admin_mod: "Moderation · Q&A", admin_save: "Save", admin_del: "Delete", admin_overview: "Overview", tab_admin: "Admin", tab_sub: "Pro",
  sub_title: "Membership", sub_sub: "Upgrade to PRO, unlock all skills", sub_month: "Monthly ¥29", sub_year: "Yearly ¥199 (save 72)", sub_upgrade: "Upgrade to PRO", sub_current: "Current plan", sub_free: "Free user", sub_pro_badge: "PRO", sub_perks: "PRO perks: all Kits free, exclusive checklists, mentor booking 10% off, priority Q&A, no ads", sub_cancel: "Expires", sub_manage: "Manage",
- pro_only: "PRO only", pro_unlock: "Unlock with PRO"
+ pro_only: "PRO only", pro_unlock: "Unlock with PRO", coming_soon: "Coming soon",
   },
 };
 const CATS = ["all", "sim", "insurance", "flight", "bank", "essentials"];
+// Monetization toggle. Free-launch = false (buttons show "coming soon", no dead payment flow).
+// Flip to true (after you register the company + connect 微信/支付宝/Stripe) to enable sales.
+const PAYMENTS_ENABLED = false;
 
 const $ = (s) => document.querySelector(s);
 const esc = (s) => String(s == null ? "" : s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
@@ -330,9 +333,9 @@ async function renderKit() {
   $("#kitList").innerHTML = kits.map((k) => `<div class="k">
     <div class="kn">${esc(k["name_" + lang])}</div>
     <div class="kd">${esc(k["desc_" + lang])}</div>
-    <div class="row"><span class="kp">¥${k.price}</span><button class="btn-sm" data-id="${k.id}">${I18N[lang].kit_buy}</button></div>
+    <div class="row"><span class="kp">¥${k.price}</span>${PAYMENTS_ENABLED ? `<button class="btn-sm" data-id="${k.id}">${I18N[lang].kit_buy}</button>` : `<button class="btn-sm" disabled style="background:#e9edf1;color:#9aa7b2;cursor:not-allowed">${I18N[lang].coming_soon}</button>`}</div>
   </div>`).join("");
-  $("#kitList").querySelectorAll("button").forEach((b) => { b.onclick = () => buyKit(kits.find((x) => x.id == b.dataset.id)); });
+  $("#kitList").querySelectorAll("button[data-id]").forEach((b) => { if (PAYMENTS_ENABLED) b.onclick = () => buyKit(kits.find((x) => x.id == b.dataset.id)); });
   const mine = await (await fetch("/api/my_kits?uid=" + uid)).json();
   $("#myKits").innerHTML = mine.length ? mine.map((k) => `<div class="k">
     <div class="kn">${esc(k["name_" + lang])}</div>
@@ -422,8 +425,8 @@ async function renderSub() {
   } else {
     html += `<p class="muted">${I18N[lang].sub_perks}</p>
       <div class="sub-plans">
-        <button class="sub-btn" data-plan="pro_month"><b>${I18N[lang].sub_month}</b></button>
-        <button class="sub-btn" data-plan="pro_year"><b>${I18N[lang].sub_year}</b></button>
+        ${PAYMENTS_ENABLED ? `<button class="sub-btn" data-plan="pro_month"><b>${I18N[lang].sub_month}</b></button>
+        <button class="sub-btn" data-plan="pro_year"><b>${I18N[lang].sub_year}</b></button>` : `<button class="sub-btn" disabled style="opacity:.6;cursor:not-allowed"><b>${I18N[lang].coming_soon}</b></button>`}
       </div>`;
   }
   html += `</div>`;
