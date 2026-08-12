@@ -32,7 +32,9 @@ const I18N = {
     kit_mine: "我的落地包", kit_buy: "购买", kit_owned: "已拥有 · 查看", kit_view: "查看", kit_download: "下载", kit_pay_hint: "模拟支付（部署时接入 Stripe / 微信支付）",
     mentor_title: "前辈预约", mentor_sub: "向同校学长学姐预约 1 对 1 咨询。",
     mentor_mine: "我的预约", mentor_book: "预约", mentor_cancel: "取消", mentor_confirm: "确认", mentor_topic_ph: "想咨询的问题", school_title: "你的学校专属清单", school_sub: "选择你的学校，查看该校同学独有的行前任务。", school_select_ph: "选择你的学校…", school_none: "选择学校后显示专属清单", dl_pack: "下载打包清单",
- admin_title: "管理后台", admin_sub: "仅管理员可见 · 合作管理 / 内容审核 / 数据总览", admin_partners: "合作方管理（用户不可见）", admin_partners_sub: "填入你的专属返佣链接，保存即生效，用户端不变。", admin_mod: "内容审核 · 问答", admin_save: "保存", admin_del: "删除", admin_overview: "数据总览", tab_admin: "管理",
+ admin_title: "管理后台", admin_sub: "仅管理员可见 · 合作管理 / 内容审核 / 数据总览", admin_partners: "合作方管理（用户不可见）", admin_partners_sub: "填入你的专属返佣链接，保存即生效，用户端不变。", admin_mod: "内容审核 · 问答", admin_save: "保存", admin_del: "删除", admin_overview: "数据总览", tab_admin: "管理", tab_sub: "会员",
+ sub_title: "会员订阅", sub_sub: "升级 PRO，解锁全部技能", sub_month: "月付 ¥29", sub_year: "年付 ¥199（省 72）", sub_upgrade: "升级 PRO", sub_current: "当前会员", sub_free: "免费用户", sub_pro_badge: "PRO", sub_perks: "PRO 专属：全部落地包免费、专属清单、前辈预约 9 折、问答优先、无广告", sub_cancel: "会员到期", sub_manage: "管理订阅",
+ pro_only: "PRO 专属", pro_unlock: "升级 PRO 解锁"
   },
   en: {
     badge: "✈ Study Abroad · Landing", hero_title: "Your first stop abroad",
@@ -53,7 +55,9 @@ const I18N = {
     kit_mine: "My Kits", kit_buy: "Buy", kit_owned: "Owned · View", kit_view: "View", kit_download: "Download", kit_pay_hint: "Mock payment (wire Stripe / WeChat Pay on deploy)",
     mentor_title: "Mentor Booking", mentor_sub: "Book a 1:1 with a senior student at your school.",
     mentor_mine: "My Bookings", mentor_book: "Book", mentor_cancel: "Cancel", mentor_confirm: "Confirm", mentor_topic_ph: "What to ask", school_title: "Your school's checklist", school_sub: "Pick your school to see tasks unique to its students.", school_select_ph: "Select your school…", school_none: "Select a school to see its checklist", dl_pack: "Download packing list",
- admin_title: "Admin Console", admin_sub: "Admin only · partnerships / moderation / overview", admin_partners: "Partner management (hidden from users)", admin_partners_sub: "Paste your affiliate tracking links; saved instantly, user shop unchanged.", admin_mod: "Moderation · Q&A", admin_save: "Save", admin_del: "Delete", admin_overview: "Overview", tab_admin: "Admin",
+ admin_title: "Admin Console", admin_sub: "Admin only · partnerships / moderation / overview", admin_partners: "Partner management (hidden from users)", admin_partners_sub: "Paste your affiliate tracking links; saved instantly, user shop unchanged.", admin_mod: "Moderation · Q&A", admin_save: "Save", admin_del: "Delete", admin_overview: "Overview", tab_admin: "Admin", tab_sub: "Pro",
+ sub_title: "Membership", sub_sub: "Upgrade to PRO, unlock all skills", sub_month: "Monthly ¥29", sub_year: "Yearly ¥199 (save 72)", sub_upgrade: "Upgrade to PRO", sub_current: "Current plan", sub_free: "Free user", sub_pro_badge: "PRO", sub_perks: "PRO perks: all Kits free, exclusive checklists, mentor booking 10% off, priority Q&A, no ads", sub_cancel: "Expires", sub_manage: "Manage",
+ pro_only: "PRO only", pro_unlock: "Unlock with PRO"
   },
 };
 const CATS = ["all", "sim", "insurance", "flight", "bank", "essentials"];
@@ -84,6 +88,7 @@ function applyLang() {
   if ($("#view-shop").classList.contains("active")) renderShop();
   if ($("#view-kit").classList.contains("active")) renderKit();
   if ($("#view-mentors").classList.contains("active")) renderMentors();
+  if ($("#view-sub").classList.contains("active")) renderSub();
   if ($("#view-admin").classList.contains("active") && !$("#tabAdmin").classList.contains("hidden")) renderAdmin();
 }
 function setLang(l) {
@@ -116,6 +121,9 @@ function enterApp() {
   $("#home").classList.add("hidden");
   $(".tabbar").classList.remove("hidden");
   $("#logoutBtn").classList.remove("hidden");
+  // Pro badge
+  const pro = localStorage.getItem("lp_pro") === "1";
+  $("#proBadge").classList.toggle("hidden", !pro);
   document.querySelectorAll(".tab").forEach((x) => x.classList.remove("active"));
   document.querySelector('.tab[data-view="check"]').classList.add("active");
   document.querySelectorAll(".view").forEach((x) => x.classList.remove("active"));
@@ -155,10 +163,11 @@ $("#authForm").onsubmit = async (e) => {
   if (r.error === "invalid") { msg.className = "msg err"; msg.textContent = lang === "zh" ? "请输入有效邮箱和密码" : "Enter a valid email and password"; return; }
   uid = r.uid; myName = r.name; lang = r.lang || "zh";
   localStorage.setItem("lp_uid", uid); localStorage.setItem("lp_name", myName); localStorage.setItem("lp_lang", lang);
+  if ("is_pro" in r) localStorage.setItem("lp_pro", r.is_pro ? "1" : "0");
   enterApp();
 };
 $("#logoutBtn").onclick = () => {
-  localStorage.removeItem("lp_uid"); localStorage.removeItem("lp_name"); localStorage.removeItem("lp_lang");
+  localStorage.removeItem("lp_uid"); localStorage.removeItem("lp_name"); localStorage.removeItem("lp_lang"); localStorage.removeItem("lp_pro");
   uid = ""; showHome();
 };
 
@@ -397,6 +406,35 @@ function bookMentor(m) {
         .then(() => { renderMentors(); });
     });
 }
+async function renderSub() {
+  if (!uid) { location.hash = "check"; return; }
+  const me = await (await fetch("/api/me?uid=" + uid)).json();
+  const pro = me.is_pro;
+  const plans = me.plans || { pro_month: { price: 29 }, pro_year: { price: 199 } };
+  let html = `<div class="sub-card ${pro ? "is-pro" : ""}">
+    <div class="sub-badge">${pro ? I18N[lang].sub_pro_badge : I18N[lang].sub_free}</div>`;
+  if (pro) {
+    html += `<p>${I18N[lang].sub_current}: <b>${me.plan === "pro_year" ? I18N[lang].sub_year : I18N[lang].sub_month}</b></p>
+      <p class="muted">${I18N[lang].sub_cancel}: ${esc(me.expires_at || "-")}</p>`;
+  } else {
+    html += `<p class="muted">${I18N[lang].sub_perks}</p>
+      <div class="sub-plans">
+        <button class="sub-btn" data-plan="pro_month"><b>${I18N[lang].sub_month}</b></button>
+        <button class="sub-btn" data-plan="pro_year"><b>${I18N[lang].sub_year}</b></button>
+      </div>`;
+  }
+  html += `</div>`;
+  $("#subBox").innerHTML = html;
+  $("#subBox").querySelectorAll(".sub-btn").forEach((b) => { b.onclick = () => subscribe(b.dataset.plan); });
+}
+function subscribe(plan) {
+  fetch("/api/subscribe", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ uid, plan }) })
+    .then((r) => r.json()).then((d) => {
+      if (d.checkout_url) { window.open(d.checkout_url, "_blank"); }
+      else if (d.pay_url) { window.open(d.pay_url, "_blank"); }
+      else if (d.ok) { renderSub(); applyLang(); }  // mock: instant pro
+    });
+}
 // ---- admin console (owner only) ----
 async function renderAdmin() {
   // guard: only the admin account can see this (server also enforces)
@@ -405,7 +443,7 @@ async function renderAdmin() {
   const ov = await (await fetch("/api/admin/overview?uid=" + uid)).json();
   $("#adminOverview").innerHTML = `<div class="ovgrid">` + [
     ["users", ov.users], ["kits_sold", ov.kits_sold], ["clicks", ov.clicks], ["bookings", ov.bookings],
-    ["kit_revenue ¥", ov.kit_revenue], ["mentor_revenue ¥", ov.mentor_revenue], ["products", ov.products], ["questions", ov.questions],
+    ["kit_revenue ¥", ov.kit_revenue], ["mentor_revenue ¥", ov.mentor_revenue], ["subscribers", ov.subscribers], ["sub_revenue ¥", ov.sub_revenue],
   ].map(([k, v]) => `<div class="ovcell"><b>${v}</b><span>${k}</span></div>`).join("") + `</div>`;
   // partnerships (editable)
   const ps = await (await fetch("/api/admin/products?uid=" + uid)).json();

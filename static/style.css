@@ -125,4 +125,12 @@ h2 { font-size: 19px; margin-bottom: 4px; color: #1f3a52; }
 .sec { font-size: 15px; color: #1f3a52; margin: 16px 0 8px; }
 .school-pick { display: flex; align-items: center; gap: 10px; margin: 6px 0 10px; }
 .school-pick select { flex: 1; padding: 11px; border-radius: 10px; border: 1px solid #dce3ea; font-size: 14px; background: #fff; color: #1c2b36; }
+/* --- subscription / Pro --- */
+.pro-badge { background: linear-gradient(135deg,#6a5cff,#22d3ee); color: #fff; font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 8px; }
+.sub-card { background: #fff; border: 1px solid #e3eaf1; border-radius: 16px; padding: 18px; margin-top: 10px; box-shadow: 0 6px 20px rgba(31,58,82,.07); }
+.sub-card.is-pro { border-color: #6a5cff; box-shadow: 0 6px 24px rgba(106,92,255,.18); }
+.sub-badge { display: inline-block; background: linear-gradient(135deg,#6a5cff,#22d3ee); color: #fff; font-weight: 700; padding: 4px 12px; border-radius: 10px; font-size: 13px; margin-bottom: 10px; }
+.sub-plans { display: flex; gap: 10px; margin-top: 12px; }
+.sub-btn { flex: 1; padding: 14px; border: 1px solid #6a5cff; border-radius: 12px; background: #f5f3ff; color: #4326d6; font-size: 14px; cursor: pointer; }
+.sub-btn:hover { background: #ece8ff; }
 .note { background: linear-gradient(135deg,#eaf3ff,#f3ecff); border-left: 3px solid #2b5876; border-radius: 12px; padding: 12px 14px; font-size: 13px; line-height: 1.7; color: #33414e; margin-top: 10px; }

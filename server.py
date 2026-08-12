@@ -11,6 +11,7 @@ import hashlib
 import hmac
 import secrets
 import time
+from datetime import datetime, timedelta
 from urllib.parse import urlparse, parse_qs
 
 # ---- Payment provider config (deploy: set env vars; local/dev uses mock) ----
@@ -467,11 +468,15 @@ def create_pending_order(uid, kit_id):
 
 
 def parse_ref(ref):
-    """Parse 'uid:kit_id' -> (uid, kit_id) or (None, None)."""
-    if ref and ":" in ref:
-        u, k = ref.split(":", 1)
-        return u, k
-    return None, None
+    """Parse 'uid:kit_id' -> ('kit', uid, kit_id) or 'sub:uid:plan' -> ('sub', uid, plan), else (None, None, None)."""
+    if not ref or ":" not in ref:
+        return None, None, None
+    parts = ref.split(":", 2)
+    if parts[0] == "sub" and len(parts) == 3:
+        return "sub", parts[1], parts[2]
+    if len(parts) == 2:
+        return "kit", parts[0], parts[1]
+    return None, None, None
 
 
 def verify_wechat_sig(timestamp: str, nonce: str, body: bytes, sig: str, key: str) -> bool:
@@ -508,6 +513,43 @@ def fulfill_order(uid, kit_id):
     c.commit(); c.close()
 
 
+# ---- Subscriber / Pro tier ----
+# Free users get core features. Pro (¥29/mo or ¥199/yr) unlocks premium "skills":
+# all Kits included, Pro-only checklist items, mentor booking discount, priority Q&A, no ads.
+PLANS = {
+    "pro_month": {"name_en": "Landing Pack Pro (monthly)", "name_zh": "PRO 会员（月）", "price": 29, "period": "month"},
+    "pro_year":  {"name_en": "Landing Pack Pro (yearly)",  "name_zh": "PRO 会员（年）",  "price": 199, "period": "year"},
+}
+
+def is_pro(uid):
+    """True if uid has an active, non-expired subscription."""
+    if not uid:
+        return False
+    c = db()
+    row = c.execute("SELECT expires_at FROM subscribers WHERE user_id=? AND status='active'", (uid,)).fetchone()
+    c.close()
+    if not row:
+        return False
+    try:
+        exp = datetime.strptime(row["expires_at"], "%Y-%m-%d %H:%M:%S")
+        return exp > datetime.now()
+    except Exception:
+        return True  # tolerate missing date: treat active as pro
+
+def create_pending_sub(uid, plan):
+    months = 12 if plan == "pro_year" else 1
+    exp = (datetime.now() + timedelta(days=months * 30)).strftime("%Y-%m-%d %H:%M:%S")
+    c = db()
+    c.execute("INSERT INTO subscribers(user_id,plan,status,expires_at) VALUES(?,?,?,?)", (uid, plan, "pending", exp))
+    c.commit(); c.close()
+
+def activate_sub(uid, plan):
+    """Flip pending sub to active (called by payment webhook)."""
+    c = db()
+    c.execute("UPDATE subscribers SET status='active' WHERE user_id=? AND plan=? AND status='pending'", (uid, plan))
+    c.commit(); c.close()
+
+
 def is_admin(uid):
     """True only if the account behind `uid` matches ADMIN_EMAIL."""
     if not uid:
@@ -536,6 +578,8 @@ def init():
     CREATE TABLE IF NOT EXISTS school_tasks(id INTEGER PRIMARY KEY AUTOINCREMENT, school_id INTEGER, cat_en TEXT, cat_zh TEXT, task_en TEXT, task_zh TEXT);
     CREATE TABLE IF NOT EXISTS user_school_checks(user_id TEXT, school_task_id INTEGER, done INTEGER DEFAULT 0, PRIMARY KEY(user_id, school_task_id));
     CREATE TABLE IF NOT EXISTS school_notes(id INTEGER PRIMARY KEY AUTOINCREMENT, school_id INTEGER, note_en TEXT, note_zh TEXT);
+    CREATE TABLE IF NOT EXISTS subscribers(id INTEGER PRIMARY KEY AUTOINCREMENT, user_id TEXT, plan TEXT DEFAULT 'pro', status TEXT DEFAULT 'active', expires_at TEXT, created_at TEXT DEFAULT (datetime('now')));
+
     """)
     if c.execute("SELECT COUNT(*) FROM checklist").fetchone()[0] == 0:
         c.executemany("INSERT INTO checklist(cat_en,cat_zh,task_en,task_zh) VALUES(?,?,?,?)", CHECKLIST)
@@ -654,8 +698,17 @@ class H(http.server.BaseHTTPRequestHandler):
             c = db(); rows = c.execute("SELECT id,name_en,name_zh,desc_en,desc_zh,price FROM kits ORDER BY id").fetchall(); c.close()
             self._j([dict(r) for r in rows]); return
         if p.path == "/api/my_kits":
-            c = db(); rows = c.execute("SELECT k.id,k.name_en,k.name_zh,k.desc_en,k.desc_zh,k.price,o.status FROM orders o JOIN kits k ON k.id=o.kit_id WHERE o.user_id=?", (uid,)).fetchall(); c.close()
-            self._j([dict(r) for r in rows]); return
+            c = db()
+            pro = is_pro(uid)
+            if pro:
+                # Pro members own every kit
+                rows = c.execute("SELECT k.id,k.name_en,k.name_zh,k.desc_en,k.desc_zh,k.price,'paid' AS status FROM kits k").fetchall()
+            else:
+                rows = c.execute("SELECT k.id,k.name_en,k.name_zh,k.desc_en,k.desc_zh,k.price,o.status FROM orders o JOIN kits k ON k.id=o.kit_id WHERE o.user_id=? AND o.status='paid'", (uid,)).fetchall()
+            c.close(); self._j([dict(r) for r in rows]); return
+        if p.path == "/api/me":
+            c = db(); row = c.execute("SELECT plan,status,expires_at FROM subscribers WHERE user_id=? AND status='active' ORDER BY id DESC LIMIT 1", (uid,)).fetchone(); c.close()
+            self._j({"uid": uid, "is_pro": is_pro(uid), "plan": row["plan"] if row else None, "expires_at": row["expires_at"] if row else None, "plans": PLANS}); return
         if p.path == "/api/kit_content":
             kid = qs.get("kit_id", [""])[0]
             c = db()
@@ -705,6 +758,8 @@ class H(http.server.BaseHTTPRequestHandler):
                     o[t] = c.execute(f"SELECT COUNT(*) FROM {t}").fetchone()[0]
                 o["kits_sold"] = c.execute("SELECT COUNT(*) FROM orders WHERE status='paid'").fetchone()[0]
                 o["clicks"] = c.execute("SELECT COUNT(*) FROM clicks").fetchone()[0]
+                o["subscribers"] = c.execute("SELECT COUNT(*) FROM subscribers WHERE status='active'").fetchone()[0]
+                o["sub_revenue"] = c.execute("SELECT COALESCE(SUM(CASE WHEN plan='pro_year' THEN 199 ELSE 29 END),0) FROM subscribers WHERE status='active'").fetchone()[0]
                 # mentor revenue = sum(platform_fee) over confirmed/paid bookings (20% of price)
                 o["mentor_revenue"] = round(c.execute("SELECT COALESCE(SUM(m.price),0) FROM bookings b JOIN mentors m ON m.id=b.mentor_id").fetchone()[0] * MENTOR_FEE_PCT / 100)
                 # kit revenue (rough, using listed prices of paid orders)
@@ -743,11 +798,15 @@ class H(http.server.BaseHTTPRequestHandler):
                 sess = event["data"]["object"]
                 ref = sess.get("client_reference_id") or ""
                 if ":" in ref:
-                    uid, kit_id = ref.split(":", 1)
-                    try:
-                        fulfill_order(uid, int(kit_id))
-                    except Exception:
-                        pass
+                    parts = ref.split(":", 2)
+                    if parts[0] == "sub" and len(parts) == 3:
+                        activate_sub(parts[1], parts[2])
+                    else:
+                        uid, kit_id = ref.split(":", 1)
+                        try:
+                            fulfill_order(uid, int(kit_id))
+                        except Exception:
+                            pass
             self.send_response(200); self.send_header("Content-Type", "application/json"); self.end_headers()
             self.wfile.write(json.dumps({"received": True}).encode()); return
         # ---- WeChat Pay notify ----
@@ -765,9 +824,11 @@ class H(http.server.BaseHTTPRequestHandler):
             try:
                 evt = json.loads(raw.decode("utf-8"))
                 ref = evt.get("out_trade_no") or (evt.get("resource", {}) or {}).get("out_trade_no") or ""
-                uid, kit_id = parse_ref(ref)
-                if uid and kit_id:
-                    fulfill_order(uid, int(kit_id))
+                kind, uid, kid = parse_ref(ref)
+                if kind == "sub" and uid:
+                    activate_sub(uid, kid)
+                elif kind == "kit" and uid and kid:
+                    fulfill_order(uid, int(kid))
             except Exception:
                 pass
             self.send_response(200); self.send_header("Content-Type", "application/json"); self.end_headers()
@@ -784,9 +845,12 @@ class H(http.server.BaseHTTPRequestHandler):
                 if not verify_alipay_sig(params, sign, ALIPAY_APP_SECRET):
                     self.send_response(400); self.end_headers(); self.wfile.write(b"failure"); return
                 ref = params.get("out_trade_no", "")
-                uid, kit_id = parse_ref(ref)
-                if uid and kit_id and params.get("trade_status") in ("TRADE_SUCCESS", "TRADE_FINISHED", None):
-                    fulfill_order(uid, int(kit_id))
+                kind, uid, kid = parse_ref(ref)
+                if params.get("trade_status") in ("TRADE_SUCCESS", "TRADE_FINISHED", None):
+                    if kind == "sub" and uid:
+                        activate_sub(uid, kid)
+                    elif kind == "kit" and uid and kid:
+                        fulfill_order(uid, int(kid))
             except Exception:
                 pass
             self.send_response(200); self.end_headers(); self.wfile.write(b"success"); return
@@ -817,7 +881,7 @@ class H(http.server.BaseHTTPRequestHandler):
                 _login_fail(ip)
                 self._j({"error": "bad"}); return
             _login_ok(ip)
-            self._j({"uid": u["id"], "name": u["name"], "lang": u["lang"]}); return
+            self._j({"uid": u["id"], "name": u["name"], "lang": u["lang"], "is_pro": is_pro(u["id"])}); return
         if p.path == "/api/profile":
             uid = b.get("uid"); name = b.get("name", ""); lang = b.get("lang", "zh")
             c = db(); c.execute("UPDATE users SET name=?, lang=? WHERE id=?", (name, lang, uid))
@@ -869,6 +933,34 @@ class H(http.server.BaseHTTPRequestHandler):
             # mock: instant unlock (dev / no provider configured)
             c = db(); cur = c.execute("INSERT INTO orders(user_id,kit_id,status) VALUES(?,?,?)", (uid, kit_id, "paid"))
             oid = cur.lastrowid; c.commit(); c.close(); self._j({"ok": True, "order_id": oid, "mock": True}); return
+        if p.path == "/api/subscribe":
+            uid = b.get("uid"); plan = b.get("plan", "pro_month")
+            if plan not in PLANS: self._j({"error": "bad_plan"}); return
+            price = PLANS[plan]["price"]
+            if PAYMENT_PROVIDER == "stripe" and STRIPE_SECRET_KEY:
+                try:
+                    import stripe
+                    stripe.api_key = STRIPE_SECRET_KEY
+                    session = stripe.checkout.Session.create(
+                        payment_method_types=["card"],
+                        line_items=[{"price_data": {"currency": "cny", "product_data": {"name": PLANS[plan]["name_en"]}, "unit_amount": int(price) * 100}, "quantity": 1}],
+                        mode="payment",
+                        success_url=APP_BASE_URL + "/?sub=1",
+                        cancel_url=APP_BASE_URL + "/?sub=0",
+                        client_reference_id=f"sub:{uid}:{plan}",
+                    )
+                    create_pending_sub(uid, plan)
+                    self._j({"checkout_url": session.url}); return
+                except Exception as e:
+                    self._j({"error": "stripe_failed", "detail": str(e)}); return
+            if PAYMENT_PROVIDER in ("wechat", "alipay") and ((PAYMENT_PROVIDER == "wechat" and WECHAT_MCH_ID and WECHAT_APIV3_KEY) or (PAYMENT_PROVIDER == "alipay" and ALIPAY_APP_ID and ALIPAY_APP_SECRET)):
+                create_pending_sub(uid, plan)
+                pay_url = f"{APP_BASE_URL}/pay/{PAYMENT_PROVIDER}?uid={uid}&plan={plan}&sub=1"
+                self._j({"pay_url": pay_url, "provider": PAYMENT_PROVIDER}); return
+            # mock: instant pro (dev / no provider configured)
+            c = db(); c.execute("INSERT INTO subscribers(user_id,plan,status,expires_at) VALUES(?,?,?,?)",
+                                (uid, plan, "active", (datetime.now() + timedelta(days=(365 if plan == "pro_year" else 30))).strftime("%Y-%m-%d %H:%M:%S")))
+            c.commit(); c.close(); self._j({"ok": True, "mock": True, "is_pro": True}); return
         if p.path == "/api/book":
             c = db(); c.execute("INSERT INTO bookings(user_id,mentor_id,slot,topic,status) VALUES(?,?,?,?,?)", (b.get("uid"), b.get("mentor_id"), b.get("slot"), b.get("topic"), "pending")); c.commit(); c.close()
             self._j({"ok": True}); return
