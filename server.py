@@ -9,6 +9,7 @@ import os
 import sqlite3
 import hashlib
 import hmac
+import re
 import secrets
 import time
 from datetime import datetime, timedelta
@@ -861,7 +862,10 @@ class H(http.server.BaseHTTPRequestHandler):
             pw = b.get("password") or ""
             name = (b.get("name") or "同学").strip()
             lang = b.get("lang", "zh")
-            if "@" not in email or len(pw) < 6:
+            # Accept phone (CN mobile: +86 + 11 digits, or 11 digits) OR email (contains @)
+            is_phone = bool(re.fullmatch(r"(\+?86)?1[3-9]\d{9}", email))
+            is_email = "@" in email and "." in email.split("@")[-1]
+            if (not (is_phone or is_email)) or len(pw) < 6:
                 self._j({"error": "invalid"}); return
             c = db()
             if c.execute("SELECT 1 FROM users WHERE email=?", (email,)).fetchone():

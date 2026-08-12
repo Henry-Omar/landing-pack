@@ -154,7 +154,10 @@ $("#authForm").onsubmit = async (e) => {
   const pw = $("#authPw").value;
   const name = $("#authName").value.trim() || "同学";
   const msg = $("#authMsg");
-  if (!email || pw.length < 6) { msg.className = "msg err"; msg.textContent = lang === "zh" ? "邮箱无效或密码至少6位" : "Invalid email or password (≥6)"; return; }
+  if (!email || pw.length < 6) { msg.className = "msg err"; msg.textContent = lang === "zh" ? "请输入手机号/邮箱，密码至少6位" : "Enter phone/email; password ≥6"; return; }
+  const isPhone = /^(\+?86)?1[3-9]\d{9}$/.test(email);
+  const isEmail = email.includes("@") && email.includes(".");
+  if (!isPhone && !isEmail) { msg.className = "msg err"; msg.textContent = lang === "zh" ? "手机号或邮箱格式不正确" : "Enter a valid phone or email"; return; }
   const url = authMode === "login" ? "/api/login" : "/api/register";
   const body = authMode === "login" ? { email, password: pw } : { email, password: pw, name, lang };
   const r = await (await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) })).json();
