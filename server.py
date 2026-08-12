@@ -638,6 +638,10 @@ class H(http.server.BaseHTTPRequestHandler):
         ct = {".css": "text/css", ".js": "application/javascript", ".html": "text/html"}.get(ext, "application/octet-stream")
         self.send_response(200)
         self.send_header("Content-Type", ct)
+        # Never cache static assets: guarantees users always load the latest build
+        # (prevents the "button still broken after a fix" stale-cache problem).
+        self.send_header("Cache-Control", "no-store, must-revalidate")
+        self.send_header("Pragma", "no-cache")
         self.end_headers()
         self.wfile.write(open(fp, encoding="utf-8").read().encode("utf-8"))
 
