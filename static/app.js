@@ -35,6 +35,18 @@ const I18N = {
  admin_title: "管理后台", admin_sub: "仅管理员可见 · 合作管理 / 内容审核 / 数据总览", admin_partners: "合作方管理（用户不可见）", admin_partners_sub: "填入你的专属返佣链接，保存即生效，用户端不变。", admin_mod: "内容审核 · 问答", admin_save: "保存", admin_del: "删除", admin_overview: "数据总览", tab_admin: "管理", tab_sub: "会员",
  sub_title: "会员订阅", sub_sub: "升级 PRO，解锁全部技能", sub_month: "月付 ¥29", sub_year: "年付 ¥199（省 72）", sub_upgrade: "升级 PRO", sub_current: "当前会员", sub_free: "免费用户", sub_pro_badge: "PRO", sub_perks: "PRO 专属：全部落地包免费、专属清单、前辈预约 9 折、问答优先、无广告", sub_cancel: "会员到期", sub_manage: "管理订阅",
  pro_only: "PRO 专属", pro_unlock: "升级 PRO 解锁", coming_soon: "即将上线",
+    tools_title: "实用工具", tools_sub: "落地生活小助手 · 免费",
+    t_conv: "尺码/单位换算", t_conv_sub: "衣服尺码、温度、重量、距离一键换算",
+    t_tip: "小费/税费计算", t_tip_sub: "输入账单，算小费与含税价（美加澳适用）",
+    t_tz: "时区/倒计时", t_tz_sub: "上海 ↔ 留学城市时间，开学/签证倒计时",
+    t_emg: "紧急联系卡", t_emg_sub: "当地报警/急救/中国领事保护，截图保存",
+    t_phr: "常用语速查", t_phr_sub: "租房/银行/医院/日常中英短语，离线可用",
+    conv_in: "输入", conv_out: "换算结果", conv_cat: "类型",
+    tip_bill: "账单金额", tip_rate: "小费率", tip_total: "合计(含小费)", tip_tip: "小费金额",
+    tz_home: "上海时间", tz_target: "留学城市", tz_now: "当地现在", tz_event: "倒计时事件", tz_date: "目标日期", tz_left: "剩余",
+    emg_title: "紧急联系卡", emg_police: "当地报警", emg_amb: "急救", emg_china: "中国领事保护 12308", emg_emb: "中国大使馆", emg_save: "截图保存此卡",
+    phr_cat: "场景", phr_zh: "中文", phr_en: "英文",
+    done: "完成", cancel: "取消", save: "保存", close: "关闭"
   },
   en: {
     badge: "✈ Study Abroad · Landing", hero_title: "Your first stop abroad",
@@ -58,6 +70,18 @@ const I18N = {
  admin_title: "Admin Console", admin_sub: "Admin only · partnerships / moderation / overview", admin_partners: "Partner management (hidden from users)", admin_partners_sub: "Paste your affiliate tracking links; saved instantly, user shop unchanged.", admin_mod: "Moderation · Q&A", admin_save: "Save", admin_del: "Delete", admin_overview: "Overview", tab_admin: "Admin", tab_sub: "Pro",
  sub_title: "Membership", sub_sub: "Upgrade to PRO, unlock all skills", sub_month: "Monthly ¥29", sub_year: "Yearly ¥199 (save 72)", sub_upgrade: "Upgrade to PRO", sub_current: "Current plan", sub_free: "Free user", sub_pro_badge: "PRO", sub_perks: "PRO perks: all Kits free, exclusive checklists, mentor booking 10% off, priority Q&A, no ads", sub_cancel: "Expires", sub_manage: "Manage",
  pro_only: "PRO only", pro_unlock: "Unlock with PRO", coming_soon: "Coming soon",
+ tools_title: "Tools", tools_sub: "Everyday landing helpers · free",
+ t_conv: "Size / Unit converter", t_conv_sub: "Clothes sizes, temp, weight, distance",
+ t_tip: "Tip & tax calculator", t_tip_sub: "Bill in → tip & tax-inclusive total (US/CA/AU)",
+ t_tz: "Timezone / countdown", t_tz_sub: "Shanghai ↔ study city, term/visa countdown",
+ t_emg: "Emergency card", t_emg_sub: "Local police/ambulance + China 12308, screenshot it",
+ t_phr: "Phrasebook", t_phr_sub: "Renting/bank/hospital/daily CN-EN phrases, offline",
+ conv_in: "Input", conv_out: "Result", conv_cat: "Type",
+ tip_bill: "Bill amount", tip_rate: "Tip %", tip_total: "Total (with tip)", tip_tip: "Tip amount",
+ tz_home: "Shanghai time", tz_target: "Study city", tz_now: "Local now", tz_event: "Countdown to", tz_date: "Target date", tz_left: "Left",
+ emg_title: "Emergency card", emg_police: "Local police", emg_amb: "Ambulance", emg_china: "China consular 12308", emg_emb: "Chinese embassy", emg_save: "Screenshot this card",
+ phr_cat: "Scene", phr_zh: "Chinese", phr_en: "English",
+ done: "Done", cancel: "Cancel", save: "Save", close: "Close"
   },
 };
 const CATS = ["all", "sim", "insurance", "flight", "bank", "essentials"];
@@ -92,6 +116,7 @@ function applyLang() {
   if ($("#view-kit").classList.contains("active")) renderKit();
   if ($("#view-mentors").classList.contains("active")) renderMentors();
   if ($("#view-sub").classList.contains("active")) renderSub();
+  if ($("#view-tools").classList.contains("active")) renderTools();
   if ($("#view-admin").classList.contains("active") && !$("#tabAdmin").classList.contains("hidden")) renderAdmin();
 }
 function setLang(l) {
@@ -432,6 +457,128 @@ async function renderSub() {
   html += `</div>`;
   $("#subBox").innerHTML = html;
   $("#subBox").querySelectorAll(".sub-btn").forEach((b) => { b.onclick = () => subscribe(b.dataset.plan); });
+}
+// ---- Tools tab: free, pure-frontend helpers (no backend needed) ----
+const TOOL_DEFS = [
+  { id: "conv", icon: "📐" }, { id: "tip", icon: "💱" }, { id: "tz", icon: "🕐" }, { id: "emg", icon: "🆘" }, { id: "phr", icon: "🌐" },
+];
+async function renderTools() {
+  const L = I18N[lang];
+  const grid = TOOL_DEFS.map((t) => `<button class="tool-card" data-tool="${t.id}">
+    <div class="tool-ic">${t.icon}</div>
+    <div class="tool-n">${L["t_" + t.id]}</div>
+    <div class="tool-s">${L["t_" + t.id + "_sub"]}</div>
+  </button>`).join("");
+  $("#toolsGrid").innerHTML = grid;
+  $("#toolsGrid").querySelectorAll(".tool-card").forEach((b) => { b.onclick = () => openTool(b.dataset.tool); });
+}
+function openTool(id) {
+  const L = I18N[lang];
+  const ov = document.createElement("div"); ov.className = "ov";
+  let body = "";
+  if (id === "conv") body = toolConv(L);
+  else if (id === "tip") body = toolTip(L);
+  else if (id === "tz") body = toolTz(L);
+  else if (id === "emg") body = toolEmg(L);
+  else if (id === "phr") body = toolPhr(L);
+  ov.innerHTML = `<div class="ovbox"><div class="ovhead"><b>${L["t_" + id]}</b><button id="mClose">✕</button></div><div class="ovbody">${body}</div></div>`;
+  document.body.appendChild(ov);
+  ov.querySelector("#mClose").onclick = () => ov.remove();
+  bindTool(id, ov, L);
+}
+function toolConv(L) {
+  const cats = { cloth: "衣服尺码 CN↔EU/US", temp: "温度 °C↔°F", weight: "重量 斤↔kg", dist: "距离 km↔mile" };
+  const opts = Object.keys(cats).map((k) => `<option value="${k}">${cats[k]}</option>`).join("");
+  return `<select id="cCat" class="fld">${opts}</select>
+    <input id="cIn" class="fld" type="number" placeholder="${L.conv_in}">
+    <div id="cOut" class="res">-</div>
+    <button class="primary" id="cGo">${L.done}</button>`;
+}
+function toolTip(L) {
+  return `<input id="tBill" class="fld" type="number" placeholder="${L.tip_bill}">
+    <input id="tRate" class="fld" type="number" value="15" placeholder="${L.tip_rate}">
+    <div id="tOut" class="res">-</div>
+    <button class="primary" id="tGo">${L.done}</button>`;
+}
+function toolTz(L) {
+  const cities = { "伦敦": 0, "纽约": -4, "多伦多": -4, "悉尼": 10, "东京": 1 };
+  const opts = Object.keys(cities).map((c) => `<option value="${c}">${c}</option>`).join("");
+  return `<label>${L.tz_home}</label><div id="tzSh" class="res">-</div>
+    <label>${L.tz_target}</label><select id="tzCity" class="fld">${opts}</select>
+    <div id="tzLocal" class="res">-</div>
+    <label>${L.tz_event}</label><input id="tzEvt" class="fld" placeholder="e.g. 开学/签证">
+    <label>${L.tz_date}</label><input id="tzDate" class="fld" type="date">
+    <div id="tzLeft" class="res">-</div>`;
+}
+function toolEmg(L) {
+  return `<div class="emgcard">
+    <h3>${L.emg_title}</h3>
+    <p>🚓 ${L.emg_police}: <b>112 / 999 / 911</b>（按当地）</p>
+    <p>🚑 ${L.emg_amb}: <b>112 / 999 / 911</b></p>
+    <p>🇨🇳 ${L.emg_china}: <b>+86-10-12308</b></p>
+    <p>🏛 ${L.emg_emb}: <b>（填你大使馆电话）</b></p>
+    <p class="muted">${L.emg_save}</p>
+  </div>`;
+}
+const PHRASES = {
+  rent: [["我想租一间房", "I'd like to rent a room"], ["押金多少？", "How much is the deposit?"], ["包含水电吗？", "Are utilities included?"]],
+  bank: [["我要开户", "I want to open an account"], ["需要什么材料？", "What documents do I need?"], ["怎么转账？", "How do I transfer money?"]],
+  hosp: [["我不舒服", "I don't feel well"], ["在哪里挂号？", "Where do I register?"], ["我会说中文", "I speak Chinese"]],
+  daily: [["请问洗手间在哪？", "Where is the bathroom?"], ["多少钱？", "How much is it?"], ["谢谢", "Thank you"]],
+};
+function toolPhr(L) {
+  const cats = { rent: "租房", bank: "银行", hosp: "医院", daily: "日常" };
+  const opts = Object.keys(cats).map((k) => `<option value="${k}">${cats[k]}</option>`).join("");
+  return `<select id="pCat" class="fld">${opts}</select><div id="pList" class="phr"></div>`;
+}
+function bindTool(id, ov, L) {
+  if (id === "conv") {
+    const calc = () => {
+      const v = parseFloat(ov.querySelector("#cIn").value), cat = ov.querySelector("#cCat").value;
+      let o = "-";
+      if (!isNaN(v)) {
+        if (cat === "temp") o = (v * 9 / 5 + 32).toFixed(1) + " °F";
+        else if (cat === "weight") o = (v / 2).toFixed(2) + " kg";
+        else if (cat === "dist") o = (v * 0.621371).toFixed(2) + " mile";
+        else if (cat === "cloth") o = "EU " + Math.max(0, Math.round(v + 30)) + " / US " + Math.max(0, Math.round(v - 2));
+      }
+      ov.querySelector("#cOut").textContent = o;
+    };
+    ov.querySelector("#cGo").onclick = calc; ov.querySelector("#cIn").oninput = calc; ov.querySelector("#cCat").onchange = calc;
+  } else if (id === "tip") {
+    const calc = () => {
+      const b = parseFloat(ov.querySelector("#tBill").value), r = parseFloat(ov.querySelector("#tRate").value) || 0;
+      if (isNaN(b)) { ov.querySelector("#tOut").textContent = "-"; return; }
+      const tip = b * r / 100;
+      ov.querySelector("#tOut").textContent = `${L.tip_tip}: ${tip.toFixed(2)}  |  ${L.tip_total}: ${(b + tip).toFixed(2)}`;
+    };
+    ov.querySelector("#tGo").onclick = calc; ov.querySelector("#tBill").oninput = calc; ov.querySelector("#tRate").oninput = calc;
+  } else if (id === "tz") {
+    const tick = () => {
+      const sh = new Date();
+      ov.querySelector("#tzSh").textContent = sh.toLocaleString("zh-CN");
+      const city = ov.querySelector("#tzCity").value;
+      const offs = { "伦敦": 0, "纽约": -4, "多伦多": -4, "悉尼": 10, "东京": 1 };
+      const d = new Date(Date.now() + (offs[city] - 8) * 3600000);
+      ov.querySelector("#tzLocal").textContent = city + ": " + d.toLocaleString("zh-CN");
+      const dt = ov.querySelector("#tzDate").value;
+      if (dt) {
+        const days = Math.ceil((new Date(dt).getTime() - Date.now()) / 86400000);
+        ov.querySelector("#tzLeft").textContent = (ov.querySelector("#tzEvt").value || L.tz_left) + ": " + (days >= 0 ? days + " 天" : "已过期");
+      }
+    };
+    ov.querySelector("#tzCity").onchange = tick;
+    ov.querySelector("#tzDate").onchange = tick;
+    ov.querySelector("#tzEvt").oninput = tick;
+    tick();
+    setInterval(tick, 60000);
+  } else if (id === "phr") {
+    const render = () => {
+      const c = ov.querySelector("#pCat").value;
+      ov.querySelector("#pList").innerHTML = PHRASES[c].map((p) => `<div class="phr-row"><span>${p[0]}</span><b>${p[1]}</b></div>`).join("");
+    };
+    ov.querySelector("#pCat").onchange = render; render();
+  }
 }
 function subscribe(plan) {
   fetch("/api/subscribe", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ uid, plan }) })
