@@ -18,6 +18,10 @@ from urllib.parse import urlparse, parse_qs
 # ---- Payment provider config (deploy: set env vars; local/dev uses mock) ----
 # PAYMENT_PROVIDER: "mock" | "stripe" | "wechat" | "alipay"
 PAYMENT_PROVIDER = os.environ.get("PAYMENT_PROVIDER", "mock")
+# Monetization master switch. Free-launch = "0" (off): /api/buy_kit and /api/subscribe
+# are refused server-side too (not just hidden in the UI), so payments can't be triggered
+# by calling the API directly. Flip to "1" (after company + 微信/支付宝/Stripe) to enable.
+PAYMENTS_ENABLED = os.environ.get("PAYMENTS_ENABLED", "0") == "1"
 STRIPE_SECRET_KEY = os.environ.get("STRIPE_SECRET_KEY", "")
 STRIPE_PUBLISHABLE_KEY = os.environ.get("STRIPE_PUBLISHABLE_KEY", "")
 STRIPE_WEBHOOK_SECRET = os.environ.get("STRIPE_WEBHOOK_SECRET", "")
@@ -627,6 +631,10 @@ class H(http.server.BaseHTTPRequestHandler):
     def end_headers(self):
         self.send_header("Cache-Control", "no-store, must-revalidate")
         self.send_header("Pragma", "no-cache")
+        # Security headers (launch hardening): stop MIME sniffing + clickjacking
+        self.send_header("X-Content-Type-Options", "nosniff")
+        self.send_header("X-Frame-Options", "DENY")
+        self.send_header("Referrer-Policy", "no-referrer")
         super().end_headers()
     def _j(self, obj):
         self.send_response(200)
@@ -909,6 +917,8 @@ class H(http.server.BaseHTTPRequestHandler):
             c = db(); c.execute("INSERT INTO clicks(product_id,user_id) VALUES(?,?)", (b.get("product_id"), b.get("uid"))); c.commit(); c.close()
             self._j({"ok": True}); return
         if p.path == "/api/buy_kit":
+            if not PAYMENTS_ENABLED:
+                self._j({"error": "coming_soon"}); return
             uid = b.get("uid"); kit_id = b.get("kit_id")
             c = db(); kit = c.execute("SELECT id,name_en,price FROM kits WHERE id=?", (kit_id,)).fetchone(); c.close()
             if not kit: self._j({"error": "no_kit"}); return
@@ -942,6 +952,8 @@ class H(http.server.BaseHTTPRequestHandler):
             c = db(); cur = c.execute("INSERT INTO orders(user_id,kit_id,status) VALUES(?,?,?)", (uid, kit_id, "paid"))
             oid = cur.lastrowid; c.commit(); c.close(); self._j({"ok": True, "order_id": oid, "mock": True}); return
         if p.path == "/api/subscribe":
+            if not PAYMENTS_ENABLED:
+                self._j({"error": "coming_soon"}); return
             uid = b.get("uid"); plan = b.get("plan", "pro_month")
             if plan not in PLANS: self._j({"error": "bad_plan"}); return
             price = PLANS[plan]["price"]
