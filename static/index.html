@@ -52,6 +52,16 @@
     </div>
   </section>
 
+  <!-- Countdown hero (shown once arrival date is set) -->
+  <div id="countdown" class="countdown hidden">
+    <div class="cd-inner">
+      <div class="cd-num" id="cdNum">--</div>
+      <div class="cd-label" id="cdLabel">天到落地</div>
+      <div class="cd-task" id="cdTask"></div>
+    </div>
+    <button class="cd-edit" id="cdEdit">设置落地日</button>
+  </div>
+
   <!-- APP -->
   <main id="view-check" class="view">
     <h2 data-i18n="check_title">行前落地清单</h2>
@@ -146,6 +156,10 @@
   <main id="view-plan" class="view hidden">
     <h2 data-i18n="plan_title">我的计划</h2>
     <p class="muted" data-i18n="plan_sub">智能清单 + 落地前7天 + 我的收藏</p>
+    <div class="plan-row">
+      <label class="fld" style="display:flex;align-items:center;gap:8px">🛬 <input id="planArrival" type="date" style="border:none;background:transparent;flex:1;font-size:14px"></label>
+      <button class="primary small" id="planArrivalSave" data-i18n="plan_save_arr">保存落地日</button>
+    </div>
     <div class="sec-h" data-i18n="plan_smart">智能落地清单</div>
     <div class="plan-row">
       <select id="planCity" class="fld"></select>
@@ -198,6 +212,6 @@
     <button class="tab hidden" id="tabAdmin" data-view="admin">🛡 <span data-i18n="tab_admin">管理</span></button>
   </nav>
 
-  <script src="/static/app.js?v=12"></script>
+  <script src="/static/app.js?v=13"></script>
 </body>
 </html>

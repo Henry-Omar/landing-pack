@@ -90,7 +90,7 @@ const PLAN_I18N = {
     plan_smart: "智能落地清单", plan_uni: "大学新生", plan_lang: "语言/预科", plan_grad: "研究生",
     plan_gen: "生成", plan_7: "落地前 7 天", plan_arrive: "到达日期", plan_7go: "生成日程",
     plan_fav: "我的收藏", plan_empty: "还没有收藏。在问答/指南点 ⭐ 收藏。",
-    plan_pick: "选择城市与身份，生成专属清单", plan_done: "已生成",
+    plan_pick: "选择城市与身份，生成专属清单", plan_done: "已生成", plan_save_arr: "保存落地日", cd_days: "天到落地", cd_arr: "天前落地", cd_today: "今天落地！", cd_task: "今日任务", cd_set: "设置你的落地日，开启倒计时",
     d1: "抵达：办本地手机卡 / eSIM，换钱或绑卡", d2: "学校报到：带录取信、护照、照片",
     d3: "开银行卡：预约，备齐材料", d4: "办交通卡（地铁/公交）", d5: "买日用品 + 食材（电饭煲！）",
     d6: "体检/疫苗（按学校要求）", d7: "熟悉校园 + 加同校群",
@@ -101,7 +101,7 @@ const PLAN_I18N = {
     plan_smart: "Smart arrival checklist", plan_uni: "University freshman", plan_lang: "Language/prep", plan_grad: "Graduate",
     plan_gen: "Generate", plan_7: "First 7 days", plan_arrive: "Arrival date", plan_7go: "Make plan",
     plan_fav: "My favorites", plan_empty: "No favorites yet. Tap ⭐ on Q&A / guides.",
-    plan_pick: "Pick city & status to build your checklist", plan_done: "Generated",
+    plan_pick: "Pick city & status to build your checklist", plan_done: "Generated", plan_save_arr: "Save arrival", cd_days: "days to landing", cd_arr: "days since landing", cd_today: "Landing day!", cd_task: "Today's task", cd_set: "Set your landing date to start the countdown",
     d1: "Arrive: get local SIM/eSIM, exchange/bind card", d2: "Register at school: offer letter, passport, photos",
     d3: "Open bank account: book + prep docs", d4: "Get transit card (metro/bus)", d5: "Buy daily stuff + food (rice cooker!)",
     d6: "Medical check / vaccines (per school)", d7: "Explore campus + join school group",
@@ -218,11 +218,42 @@ function enterApp() {
   document.querySelectorAll(".view").forEach((x) => x.classList.remove("active"));
   $("#view-check").classList.add("active");
   applyLang();
+  // Load arrival date + render countdown hero
+  fetch("/api/profile?uid=" + uid).then((x) => x.json()).then((j) => {
+    if (j.arrival) { myArrival = j.arrival; }
+    renderCountdown();
+  }).catch(() => {});
   // Reveal admin tab only for the owner account (server also enforces via admin_token).
   const at = localStorage.getItem("lp_admin");
   fetch("/api/admin/check?uid=" + uid + (at ? "&admin_token=" + encodeURIComponent(at) : "")).then((x) => x.json()).then((j) => {
     if (j.admin) { $("#tabAdmin").classList.remove("hidden"); } else { $("#tabAdmin").classList.add("hidden"); }
   }).catch(() => $("#tabAdmin").classList.add("hidden"));
+}
+let myArrival = localStorage.getItem("lp_arrival") || "";
+function renderCountdown() {
+  const el = $("#countdown");
+  if (!myArrival) { el.classList.add("hidden"); return; }
+  const arr = new Date(myArrival + "T00:00:00");
+  const now = new Date();
+  const days = Math.round((arr - now) / 86400000);
+  const P = PLAN_I18N[lang];
+  let num, label;
+  if (days > 0) { num = days; label = P.cd_days; }
+  else if (days === 0) { num = "🎉"; label = P.cd_today; }
+  else { num = Math.abs(days); label = P.cd_arr; }
+  $("#cdNum").textContent = num;
+  $("#cdLabel").textContent = label;
+  // today's task from the 7-day plan if within range
+  let task = "";
+  if (days > 0 && days <= 7) { const d = P["d" + days]; if (d) task = P.cd_task + "：" + d; }
+  else if (days > 7) task = P.cd_task + "：" + P.d1;
+  $("#cdTask").textContent = task;
+  el.classList.remove("hidden");
+}
+function saveArrival(date) {
+  myArrival = date; localStorage.setItem("lp_arrival", date);
+  fetch("/api/set_arrival", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ uid, arrival: date }) });
+  renderCountdown();
 }
 function updateAuthUI() {
   const L = I18N[lang];
@@ -661,6 +692,9 @@ function favStar(type, id, title, body) {
 }
 async function renderPlan() {
   const P = PLAN_I18N[lang];
+  // arrival date (drives the countdown hero)
+  $("#planArrival").value = myArrival || "";
+  $("#planArrivalSave").onclick = () => { const d = $("#planArrival").value; if (d) saveArrival(d); };
   // cities for smart checklist
   const cities = await (await fetch("/api/cities")).json();
   $("#planCity").innerHTML = `<option value="">${P.plan_pick}</option>` + cities.map((c) => `<option value="${c.id}">${esc(c["name_" + lang])}</option>`).join("");

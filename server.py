@@ -622,6 +622,10 @@ def init():
         c.execute("ALTER TABLE users ADD COLUMN school_id INTEGER")
     except Exception:
         pass
+    try:
+        c.execute("ALTER TABLE users ADD COLUMN arrival TEXT")
+    except Exception:
+        pass
     if c.execute("SELECT COUNT(*) FROM schools").fetchone()[0] == 0:
         c.executemany("INSERT INTO schools(name_en,name_zh,city_id,country_en,country_zh) VALUES(?,?,?,?,?)", SCHOOLS)
     if c.execute("SELECT COUNT(*) FROM school_tasks").fetchone()[0] == 0:
@@ -683,8 +687,8 @@ class H(http.server.BaseHTTPRequestHandler):
         qs = parse_qs(p.query)
         uid = qs.get("uid", [""])[0]
         if p.path == "/api/profile":
-            c = db(); u = c.execute("SELECT name,lang,school_id FROM users WHERE id=?", (uid,)).fetchone(); c.close()
-            self._j({"name": u["name"] if u else None, "lang": u["lang"] if u else "zh", "school_id": u["school_id"] if u else None}); return
+            c = db(); u = c.execute("SELECT name,lang,school_id,arrival FROM users WHERE id=?", (uid,)).fetchone(); c.close()
+            self._j({"name": u["name"] if u else None, "lang": u["lang"] if u else "zh", "school_id": u["school_id"] if u else None, "arrival": u["arrival"] if u else None}); return
         if p.path == "/api/checklist":
             c = db(); rows = c.execute("SELECT id,cat_en,cat_zh,task_en,task_zh FROM checklist ORDER BY id").fetchall(); c.close()
             self._j([dict(r) for r in rows]); return
@@ -1031,6 +1035,9 @@ class H(http.server.BaseHTTPRequestHandler):
             self._j({"ok": True}); return
         if p.path == "/api/set_school":
             c = db(); c.execute("UPDATE users SET school_id=? WHERE id=?", (b.get("school_id"), b.get("uid"))); c.commit(); c.close()
+            self._j({"ok": True}); return
+        if p.path == "/api/set_arrival":
+            c = db(); c.execute("UPDATE users SET arrival=? WHERE id=?", ((b.get("arrival") or "")[:20], b.get("uid"))); c.commit(); c.close()
             self._j({"ok": True}); return
         if p.path == "/api/school_check":
             c = db(); c.execute("INSERT OR REPLACE INTO user_school_checks(user_id,school_task_id,done) VALUES(?,?,?)", (b.get("uid"), b.get("task_id"), b.get("done", 1))); c.commit(); c.close()
