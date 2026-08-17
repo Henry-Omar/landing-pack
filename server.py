@@ -41,6 +41,10 @@ MENTOR_FEE_PCT = 20
 # Admin: only this account email can open the in-app admin console (/admin).
 # Override with env ADMIN_EMAIL on deploy.
 ADMIN_EMAIL = os.environ.get("ADMIN_EMAIL", "admin@landing.pack")
+# Server-side admin session token. Regenerated each boot; returned ONLY to the
+# admin account on login. All /api/admin/* calls must present it. This stops a
+# client from forging admin access by sending a guessed uid (e.g. "u_admin").
+ADMIN_TOKEN = secrets.token_hex(16)
 
 DB = os.path.join(os.environ.get("DATA_DIR", os.path.dirname(__file__)), "landing.db")
 
@@ -539,7 +543,7 @@ def is_pro(uid):
         exp = datetime.strptime(row["expires_at"], "%Y-%m-%d %H:%M:%S")
         return exp > datetime.now()
     except Exception:
-        return True  # tolerate missing date: treat active as pro
+        return False  # corrupted date => not pro (fail safe)
 
 def create_pending_sub(uid, plan):
     months = 12 if plan == "pro_year" else 1
@@ -561,6 +565,10 @@ def is_admin(uid):
         return False
     c = db(); u = c.execute("SELECT email FROM users WHERE id=?", (uid,)).fetchone(); c.close()
     return bool(u) and u["email"] == ADMIN_EMAIL
+
+def admin_ok(uid, token):
+    """is_admin AND presents the server-issued ADMIN_TOKEN. Required for /api/admin/*."""
+    return is_admin(uid) and token == ADMIN_TOKEN
 
 
 def init():
@@ -786,7 +794,7 @@ class H(http.server.BaseHTTPRequestHandler):
             self._j({"status": "ok", "provider": PAYMENT_PROVIDER, "stripe": bool(STRIPE_SECRET_KEY), "webhook": bool(STRIPE_WEBHOOK_SECRET), "wechat": bool(WECHAT_MCH_ID and WECHAT_APIV3_KEY), "alipay": bool(ALIPAY_APP_ID and ALIPAY_APP_SECRET)}); return
         # ---- Admin console (gated: only ADMIN_EMAIL) ----
         if p.path.startswith("/api/admin/"):
-            if not is_admin(uid):
+            if not admin_ok(uid, qs.get("admin_token", [""])[0]):
                 self.send_response(403); self.send_header("Content-Type", "application/json"); self.end_headers()
                 self.wfile.write(json.dumps({"error": "forbidden"}).encode()); return
             if p.path == "/api/admin/check":
@@ -926,12 +934,15 @@ class H(http.server.BaseHTTPRequestHandler):
                 self._j({"error": "too_many"}); return
             email = (b.get("email") or "").strip().lower()
             pw = b.get("password") or ""
-            c = db(); u = c.execute("SELECT id,name,lang,password FROM users WHERE email=?", (email,)).fetchone(); c.close()
+            c = db(); u = c.execute("SELECT id,email,name,lang,password FROM users WHERE email=?", (email,)).fetchone(); c.close()
             if not u or not verify_pw(pw, u["password"]):
                 _login_fail(ip)
                 self._j({"error": "bad"}); return
             _login_ok(ip)
-            self._j({"uid": u["id"], "name": u["name"], "lang": u["lang"], "is_pro": is_pro(u["id"])}); return
+            resp = {"uid": u["id"], "name": u["name"], "lang": u["lang"], "is_pro": is_pro(u["id"])}
+            if u["email"] == ADMIN_EMAIL:
+                resp["admin_token"] = ADMIN_TOKEN
+            self._j(resp); return
         if p.path == "/api/profile":
             uid = b.get("uid"); name = b.get("name", ""); lang = b.get("lang", "zh")
             c = db(); c.execute("UPDATE users SET name=?, lang=? WHERE id=?", (name, lang, uid))
@@ -1046,7 +1057,7 @@ class H(http.server.BaseHTTPRequestHandler):
         # ---- Admin console POST (gated: only ADMIN_EMAIL) ----
         if p.path.startswith("/api/admin/"):
             uid = b.get("uid")
-            if not is_admin(uid):
+            if not admin_ok(uid, b.get("admin_token")):
                 self.send_response(403); self.send_header("Content-Type", "application/json"); self.end_headers()
                 self.wfile.write(json.dumps({"error": "forbidden"}).encode()); return
             if p.path == "/api/admin/product_save":

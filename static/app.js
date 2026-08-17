@@ -193,6 +193,11 @@ document.querySelectorAll(".tab").forEach((t) => {
     applyLang();
   };
 });
+// Programmatic tab switch (used by nudges / deep links)
+function switchTab(view) {
+  const t = document.querySelector('.tab[data-view="' + view + '"]');
+  if (t) t.click();
+}
 
 // ---- auth ----
 function showHome() {
@@ -213,8 +218,9 @@ function enterApp() {
   document.querySelectorAll(".view").forEach((x) => x.classList.remove("active"));
   $("#view-check").classList.add("active");
   applyLang();
-  // Reveal admin tab only for the owner account (server also enforces).
-  fetch("/api/admin/check?uid=" + uid).then((x) => x.json()).then((j) => {
+  // Reveal admin tab only for the owner account (server also enforces via admin_token).
+  const at = localStorage.getItem("lp_admin");
+  fetch("/api/admin/check?uid=" + uid + (at ? "&admin_token=" + encodeURIComponent(at) : "")).then((x) => x.json()).then((j) => {
     if (j.admin) { $("#tabAdmin").classList.remove("hidden"); } else { $("#tabAdmin").classList.add("hidden"); }
   }).catch(() => $("#tabAdmin").classList.add("hidden"));
 }
@@ -251,6 +257,7 @@ $("#authForm").onsubmit = async (e) => {
   uid = r.uid; myName = r.name; lang = r.lang || "zh";
   localStorage.setItem("lp_uid", uid); localStorage.setItem("lp_name", myName); localStorage.setItem("lp_lang", lang);
   if ("is_pro" in r) localStorage.setItem("lp_pro", r.is_pro ? "1" : "0");
+  if ("admin_token" in r) localStorage.setItem("lp_admin", r.admin_token); else localStorage.removeItem("lp_admin");
   enterApp();
 };
 $("#logoutBtn").onclick = () => {
@@ -281,8 +288,8 @@ async function renderChecklist() {
       if (!mine.length) {
         nudge.classList.remove("hidden");
         nudge.innerHTML = lang === "zh"
-          ? "进度不错！怕漏签证材料？<b>签证不慌包 ¥9</b> 一键照着打勾 → <button class=\"btn-sm\" onclick=\"location.hash='kit'\">去看看</button>"
-          : "Good progress! Scared of missing visa docs? <b>Visa-No-Panic Kit ¥9</b> → <button class=\"btn-sm\" onclick=\"location.hash='kit'\">view</button>";
+          ? "进度不错！怕漏签证材料？<b>签证不慌包 ¥9</b> 一键照着打勾 → <button class=\"btn-sm\" onclick=\"switchTab('kit')\">去看看</button>"
+          : "Good progress! Scared of missing visa docs? <b>Visa-No-Panic Kit ¥9</b> → <button class=\"btn-sm\" onclick=\"switchTab('kit')\">view</button>";
       } else {
         nudge.classList.add("hidden");
       }
@@ -746,16 +753,18 @@ function subscribe(plan) {
 }
 // ---- admin console (owner only) ----
 async function renderAdmin() {
-  // guard: only the admin account can see this (server also enforces)
-  const chk = await (await fetch("/api/admin/check?uid=" + uid)).json().catch(() => ({}));
+  // guard: only the admin account can see this (server also enforces via admin_token)
+  const at = localStorage.getItem("lp_admin") || "";
+  const q = (p) => p + (p.indexOf("?") >= 0 ? "&" : "?") + "admin_token=" + encodeURIComponent(at);
+  const chk = await (await fetch(q("/api/admin/check?uid=" + uid))).json().catch(() => ({}));
   if (!chk.admin) { $("#view-admin").innerHTML = `<p class="muted">${lang === "zh" ? "无权限" : "No access"}</p>`; return; }
-  const ov = await (await fetch("/api/admin/overview?uid=" + uid)).json();
+  const ov = await (await fetch(q("/api/admin/overview?uid=" + uid))).json();
   $("#adminOverview").innerHTML = `<div class="ovgrid">` + [
     ["users", ov.users], ["kits_sold", ov.kits_sold], ["clicks", ov.clicks], ["bookings", ov.bookings],
     ["kit_revenue ¥", ov.kit_revenue], ["mentor_revenue ¥", ov.mentor_revenue], ["subscribers", ov.subscribers], ["sub_revenue ¥", ov.sub_revenue],
   ].map(([k, v]) => `<div class="ovcell"><b>${v}</b><span>${k}</span></div>`).join("") + `</div>`;
   // partnerships (editable)
-  const ps = await (await fetch("/api/admin/products?uid=" + uid)).json();
+  const ps = await (await fetch(q("/api/admin/products?uid=" + uid))).json();
   $("#adminProducts").innerHTML = ps.map((p) => `<div class="ap">
     <div class="apn">${esc(p.name_zh)} · ${esc(p.name_en)} <span class="apc">${esc(p.cat)}</span> ${p.url.indexOf("YOUR_") >= 0 ? '<span class="apwarn">待填链接</span>' : '<span class="apok">已上线</span>'}</div>
     <label>${lang === "zh" ? "价格" : "Price"}<input data-f="price" data-id="${p.id}" value="${esc(p.price)}"></label>
@@ -771,12 +780,12 @@ async function renderAdmin() {
       const price = $(`#adminProducts input[data-f="price"][data-id="${id}"]`).value;
       const commission = $(`#adminProducts input[data-f="commission"][data-id="${id}"]`).value;
       const url = $(`#adminProducts input[data-f="url"][data-id="${id}"]`).value;
-      await fetch("/api/admin/product_save", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ uid, id: +id, price, commission, url }) });
+      await fetch("/api/admin/product_save", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ uid, admin_token: at, id: +id, price, commission, url }) });
       b.textContent = "✓";
     };
   });
   // moderation: questions + answers
-  const qs = await (await fetch("/api/admin/qa?uid=" + uid)).json();
+  const qs = await (await fetch(q("/api/admin/qa?uid=" + uid))).json();
   $("#adminQA").innerHTML = qs.length ? qs.map((q) => `<div class="aq">
     <div class="aqh">${esc(q.name)} · ${q.lang === "zh" ? "中文" : "EN"} <span class="aqt">${esc(q.title)}</span></div>
     ${esc(q.body)}
@@ -786,7 +795,7 @@ async function renderAdmin() {
   $("#adminQA").querySelectorAll(".adel").forEach((b) => { b.onclick = () => delQA(b.dataset.aid, null); });
   $("#adminQA").querySelectorAll(".adelq").forEach((b) => { b.onclick = () => delQA(null, b.dataset.qid); });
   // moderation: community (buddies + posts)
-  const cm = await (await fetch("/api/admin/community?uid=" + uid)).json();
+  const cm = await (await fetch(q("/api/admin/community?uid=" + uid))).json();
   const modBtn = (what, id, label) => `<button class="btn-sm apsave" data-w="${what}" data-id="${id}">${label}</button>`;
   $("#adminCommunity").innerHTML =
     `<div class="sec" data-i18n="admin_comm_b">找同伴审核</div>` +
@@ -794,11 +803,11 @@ async function renderAdmin() {
     `<div class="sec" data-i18n="admin_comm_p">本地信息/二手审核</div>` +
     (cm.posts.length ? cm.posts.map((p) => `<div class="aq">[${esc(p.kind)}] ${esc(p.title)} · ${esc(p.name)} ${p.status !== "approved" ? modBtn("post", p.id, lang === "zh" ? "通过" : "Approve") + modBtn2("post", p.id, lang === "zh" ? "拒绝" : "Reject") : '<span class="apok">✓</span>'}</div>`).join("") : `<p class="muted">${lang === "zh" ? "暂无" : "None"}</p>`);
   const allMod = $("#adminCommunity").querySelectorAll(".apsave");
-  allMod.forEach((b) => { b.onclick = async () => { await fetch("/api/admin/mod", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ uid, what: b.dataset.w, id: +b.dataset.id, status: b.textContent.indexOf("通过") >= 0 || b.textContent.indexOf("Approve") >= 0 ? "approved" : "rejected" }) }); renderAdmin(); }; });
+  allMod.forEach((b) => { b.onclick = async () => { await fetch("/api/admin/mod", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ uid, admin_token: at, what: b.dataset.w, id: +b.dataset.id, status: b.textContent.indexOf("通过") >= 0 || b.textContent.indexOf("Approve") >= 0 ? "approved" : "rejected" }) }); renderAdmin(); }; });
 }
 function modBtn2(what, id, label) { return `<button class="btn-sm adelq" data-w="${what}" data-id="${id}">${label}</button>`; }
 async function delQA(answer_id, q_id) {
-  await fetch("/api/admin/qa_delete", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ uid, answer_id: answer_id ? +answer_id : null, q_id: q_id ? +q_id : null }) });
+  await fetch("/api/admin/qa_delete", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ uid, admin_token: localStorage.getItem("lp_admin") || "", answer_id: answer_id ? +answer_id : null, q_id: q_id ? +q_id : null }) });
   renderAdmin();
 }
 
