@@ -84,6 +84,30 @@ const I18N = {
  done: "Done", cancel: "Cancel", save: "Save", close: "Close"
   },
 };
+const PLAN_I18N = {
+  zh: {
+    plan_title: "我的计划", plan_sub: "智能清单 + 落地前7天 + 我的收藏",
+    plan_smart: "智能落地清单", plan_uni: "大学新生", plan_lang: "语言/预科", plan_grad: "研究生",
+    plan_gen: "生成", plan_7: "落地前 7 天", plan_arrive: "到达日期", plan_7go: "生成日程",
+    plan_fav: "我的收藏", plan_empty: "还没有收藏。在问答/指南点 ⭐ 收藏。",
+    plan_pick: "选择城市与身份，生成专属清单", plan_done: "已生成",
+    d1: "抵达：办本地手机卡 / eSIM，换钱或绑卡", d2: "学校报到：带录取信、护照、照片",
+    d3: "开银行卡：预约，备齐材料", d4: "办交通卡（地铁/公交）", d5: "买日用品 + 食材（电饭煲！）",
+    d6: "体检/疫苗（按学校要求）", d7: "熟悉校园 + 加同校群",
+    fav_qa: "问答", fav_guide: "指南", fav_tool: "工具", unfav: "取消收藏",
+  },
+  en: {
+    plan_title: "My Plan", plan_sub: "Smart checklist + first 7 days + favorites",
+    plan_smart: "Smart arrival checklist", plan_uni: "University freshman", plan_lang: "Language/prep", plan_grad: "Graduate",
+    plan_gen: "Generate", plan_7: "First 7 days", plan_arrive: "Arrival date", plan_7go: "Make plan",
+    plan_fav: "My favorites", plan_empty: "No favorites yet. Tap ⭐ on Q&A / guides.",
+    plan_pick: "Pick city & status to build your checklist", plan_done: "Generated",
+    d1: "Arrive: get local SIM/eSIM, exchange/bind card", d2: "Register at school: offer letter, passport, photos",
+    d3: "Open bank account: book + prep docs", d4: "Get transit card (metro/bus)", d5: "Buy daily stuff + food (rice cooker!)",
+    d6: "Medical check / vaccines (per school)", d7: "Explore campus + join school group",
+    fav_qa: "Q&A", fav_guide: "Guide", fav_tool: "Tool", unfav: "Remove",
+  },
+};
 const CATS = ["all", "sim", "insurance", "flight", "bank", "essentials"];
 // Monetization toggle. Free-launch = false (buttons show "coming soon", no dead payment flow).
 // Flip to true (after you register the company + connect 微信/支付宝/Stripe) to enable sales.
@@ -117,6 +141,7 @@ function applyLang() {
   if ($("#view-mentors").classList.contains("active")) renderMentors();
   if ($("#view-sub").classList.contains("active")) renderSub();
   if ($("#view-tools").classList.contains("active")) renderTools();
+  if ($("#view-plan").classList.contains("active")) renderPlan();
   if ($("#view-admin").classList.contains("active") && !$("#tabAdmin").classList.contains("hidden")) renderAdmin();
 }
 function setLang(l) {
@@ -127,6 +152,18 @@ function setLang(l) {
 }
 $("#langZh").onclick = () => setLang("zh");
 $("#langEn").onclick = () => setLang("en");
+// Delegated favorite toggle for any ⭐ button (guide/wiki/qa)
+document.addEventListener("click", (e) => {
+  const b = e.target.closest(".favbtn");
+  if (!b) return;
+  if (b.dataset.idx != null) return; // remove-button handled in renderPlan
+  toggleFav(b.dataset.t, b.dataset.i, b.dataset.title, b.dataset.body);
+  if (b.dataset.t === "guide" || b.dataset.t === "qa") {
+    // re-render the current list to reflect star state
+    if ($("#view-guide").classList.contains("active")) renderCities();
+    if ($("#view-qa").classList.contains("active")) renderQA();
+  }
+});
 
 document.querySelectorAll(".tab").forEach((t) => {
   t.onclick = () => {
@@ -297,7 +334,7 @@ async function renderCities() {
 async function renderWiki() {
   if (!curCity) return;
   const rows = await (await fetch("/api/wiki?city_id=" + curCity)).json();
-  $("#wikiList").innerHTML = rows.map((w) => `<div class="w"><span class="wc">${esc(w["cat_" + lang])}</span><h3>${esc(w["title_" + lang])}</h3><p>${esc(w["body_" + lang])}</p></div>`).join("");
+  $("#wikiList").innerHTML = rows.map((w) => `<div class="w"><span class="wc">${esc(w["cat_" + lang])}</span><h3>${esc(w["title_" + lang])}</h3><p>${esc(w["body_" + lang])}</p>${favStar("guide", w.id, w["title_" + lang], w["body_" + lang])}</div>`).join("");
 }
 
 // ---- qa ----
@@ -579,6 +616,60 @@ function bindTool(id, ov, L) {
     };
     ov.querySelector("#pCat").onchange = render; render();
   }
+}
+// ---- Plan tab: smart checklist + first-7-days + favorites (all localStorage, no backend) ----
+function getFavs() { try { return JSON.parse(localStorage.getItem("lp_favs") || "[]"); } catch (e) { return []; } }
+function setFavs(a) { localStorage.setItem("lp_favs", JSON.stringify(a)); }
+function isFav(type, id) { return getFavs().some((f) => f.type === type && f.id === id); }
+function toggleFav(type, id, title, body) {
+  let a = getFavs();
+  if (isFav(type, id)) a = a.filter((f) => !(f.type === type && f.id === id));
+  else a.push({ type, id, title, body });
+  setFavs(a);
+  if ($("#view-plan").classList.contains("active")) renderPlan();
+}
+// star button HTML for a savable item
+function favStar(type, id, title, body) {
+  const on = isFav(type, id);
+  return `<button class="favbtn" data-t="${type}" data-i="${id}" data-title="${esc(title)}" data-body="${esc(body)}" style="background:${on ? "#ffe08a" : "#eef2f6"}">${on ? "★" : "☆"}</button>`;
+}
+async function renderPlan() {
+  const P = PLAN_I18N[lang];
+  // cities for smart checklist
+  const cities = await (await fetch("/api/cities")).json();
+  $("#planCity").innerHTML = `<option value="">${P.plan_pick}</option>` + cities.map((c) => `<option value="${c.id}">${esc(c["name_" + lang])}</option>`).join("");
+  $("#planGen").onclick = async () => {
+    const cityId = $("#planCity").value, school = $("#planSchool").value;
+    const tasks = await (await fetch("/api/checklist")).json();
+    let html = tasks.map((t, i) => {
+      const key = "plan_" + school + "_" + t.cat;
+      const done = localStorage.getItem("plan_task_" + school + "_" + i) === "1";
+      return `<label class="pli"><input type="checkbox" data-k="plan_task_${school}_${i}" ${done ? "checked" : ""}> <b>${esc(t["name_" + lang])}</b> <span class="muted">${esc(t["desc_" + lang])}</span></label>`;
+    }).join("");
+    if (cityId) {
+      const w = await (await fetch("/api/wiki?city_id=" + cityId)).json();
+      if (w.length) html += `<div class="note">📍 ${esc(cities.find((c) => c.id == cityId)["name_" + lang])}：${esc(w[0]["body_" + lang])}</div>`;
+    }
+    $("#planChecklist").innerHTML = html;
+    $("#planChecklist").querySelectorAll("input[type=checkbox]").forEach((cb) => { cb.onchange = () => localStorage.setItem(cb.dataset.k, cb.checked ? "1" : "0"); });
+  };
+  // first 7 days
+  $("#plan7").onclick = () => {
+    const d = $("#planArrive").value;
+    if (!d) { $("#plan7days").innerHTML = `<p class="muted">${P.plan_arrive}</p>`; return; }
+    const arr = new Date(d);
+    let html = "";
+    for (let i = 1; i <= 7; i++) {
+      const day = new Date(arr.getTime() + (i - 1) * 86400000);
+      html += `<div class="pli"><b>D${i} · ${day.getMonth() + 1}/${day.getDate()}</b> <span>${esc(P["d" + i])}</span></div>`;
+    }
+    $("#plan7days").innerHTML = html;
+  };
+  // favorites
+  const favs = getFavs();
+  $("#planFavs").innerHTML = favs.length ? favs.map((f, idx) => `<div class="pli"><div><b>${esc(f.title)}</b> <span class="muted">[${P["fav_" + f.type] || f.type}]</span></div><div class="muted">${esc(f.body)}</div><button class="favbtn" data-idx="${idx}">${P.unfav}</button></div>`).join("")
+    : `<p class="muted">${P.plan_empty}</p>`;
+  $("#planFavs").querySelectorAll(".favbtn").forEach((b) => { b.onclick = () => { const a = getFavs(); a.splice(+b.dataset.idx, 1); setFavs(a); renderPlan(); }; });
 }
 function subscribe(plan) {
   fetch("/api/subscribe", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ uid, plan }) })

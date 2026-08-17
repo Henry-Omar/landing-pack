@@ -176,3 +176,11 @@ body { -webkit-overflow-scrolling: touch; }
 .tab.active::before { content: ""; position: absolute; top: 6px; left: 50%; transform: translateX(-50%); width: 22px; height: 3px; border-radius: 3px; background: linear-gradient(135deg,#00e5ff,#7c5cff); }
 /* checkbox tick micro-interaction */
 input[type="checkbox"] { width: 18px; height: 18px; accent-color: #2b5876; }
+/* ---- Plan tab ---- */
+.sec-h { font-weight: 700; color: #2b5876; margin: 18px 0 8px; font-size: 15px; }
+.plan-row { display: flex; gap: 8px; align-items: center; margin-bottom: 10px; flex-wrap: wrap; }
+.plan-row .fld { flex: 1; min-width: 120px; }
+.plan-list { display: flex; flex-direction: column; gap: 8px; }
+.pli { background: #fff; border: 1px solid #eef2f6; border-radius: 12px; padding: 12px 14px; font-size: 14px; line-height: 1.6; display: flex; flex-direction: column; gap: 4px; }
+.pli label { display: flex; gap: 8px; align-items: flex-start; }
+.favbtn { align-self: flex-end; border: none; border-radius: 8px; width: 34px; height: 30px; font-size: 15px; cursor: pointer; margin-top: 4px; }

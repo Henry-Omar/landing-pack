@@ -141,6 +141,30 @@
     <div id="adminQA" class="admin-qa"></div>
   </main>
 
+  <main id="view-plan" class="view hidden">
+    <h2 data-i18n="plan_title">我的计划</h2>
+    <p class="muted" data-i18n="plan_sub">智能清单 + 落地前7天 + 我的收藏</p>
+    <div class="sec-h" data-i18n="plan_smart">智能落地清单</div>
+    <div class="plan-row">
+      <select id="planCity" class="fld"></select>
+      <select id="planSchool" class="fld">
+        <option value="uni" data-i18n="plan_uni">大学新生</option>
+        <option value="lang" data-i18n="plan_lang">语言/预科</option>
+        <option value="grad" data-i18n="plan_grad">研究生</option>
+      </select>
+      <button class="primary small" id="planGen">生成</button>
+    </div>
+    <div id="planChecklist" class="plan-list"></div>
+    <div class="sec-h" data-i18n="plan_7">落地前 7 天</div>
+    <div class="plan-row">
+      <input id="planArrive" type="date" class="fld">
+      <button class="primary small" id="plan7">生成日程</button>
+    </div>
+    <div id="plan7days" class="plan-list"></div>
+    <div class="sec-h" data-i18n="plan_fav">我的收藏</div>
+    <div id="planFavs" class="plan-list"></div>
+  </main>
+
   <nav class="tabbar">
     <button class="tab active" data-view="check">✅ <span data-i18n="tab_check">清单</span></button>
     <button class="tab" data-view="guide">🗺 <span data-i18n="tab_guide">指南</span></button>
@@ -150,9 +174,10 @@
     <button class="tab" data-view="sub">⭐ <span data-i18n="tab_sub">会员</span></button>
     <button class="tab" data-view="mentors">🎓 <span data-i18n="tab_mentor">前辈</span></button>
     <button class="tab" data-view="tools">🧰 <span data-i18n="tab_tools">工具</span></button>
+    <button class="tab" data-view="plan">🗓 <span data-i18n="tab_plan">计划</span></button>
     <button class="tab hidden" id="tabAdmin" data-view="admin">🛡 <span data-i18n="tab_admin">管理</span></button>
   </nav>
 
-  <script src="/static/app.js?v=10"></script>
+  <script src="/static/app.js?v=11"></script>
 </body>
 </html>
