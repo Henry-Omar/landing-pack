@@ -140,6 +140,33 @@ let lang = localStorage.getItem("lp_lang") || "zh";
 let authMode = "login";
 let curShopCat = "all";
 let mySchool = "";
+// ---- Offline mode: cache GET JSON in localStorage, fall back on network failure ----
+const LP_CACHE = "lp_cache_v1";
+function cacheGet(key) {
+  try { const o = JSON.parse(localStorage.getItem(LP_CACHE) || "{}"); return key in o ? o[key] : null; } catch (e) { return null; }
+}
+function cacheSet(key, val) {
+  try { const o = JSON.parse(localStorage.getItem(LP_CACHE) || "{}"); o[key] = { t: Date.now(), v: val }; localStorage.setItem(LP_CACHE, JSON.stringify(o)); } catch (e) {}
+}
+async function apiCached(url, cacheKey) {
+  const ck = cacheKey || url;
+  try {
+    const r = await fetch(url);
+    if (!r.ok) throw new Error("bad");
+    const j = await r.json();
+    cacheSet(ck, j);
+    if (navigator.onLine) offlineBadge(false);
+    return j;
+  } catch (e) {
+    const cached = cacheGet(ck);
+    if (cached) { offlineBadge(true); return cached.v; }
+    throw e;
+  }
+}
+function offlineBadge(show) {
+  const el = $("#offlineBadge");
+  if (el) el.classList.toggle("hidden", !show);
+}
 
 function applyLang() {
   document.documentElement.lang = lang;
@@ -331,7 +358,7 @@ $("#logoutBtn").onclick = () => {
 
 // ---- checklist ----
 async function renderChecklist() {
-  const tasks = await (await fetch("/api/checklist")).json();
+  const tasks = await apiCached("/api/checklist", "checklist");
   const checks = await (await fetch("/api/checks?uid=" + uid)).json();
   const groups = {};
   tasks.forEach((t) => { (groups[t["cat_" + lang]] = groups[t["cat_" + lang]] || []).push(t); });
@@ -415,7 +442,7 @@ $("#dlPack").onclick = () => {
 // ---- guide ----
 let curCity = null;
 async function renderCities() {
-  const cities = await (await fetch("/api/cities")).json();
+  const cities = await apiCached("/api/cities", "cities");
   if (!curCity && cities.length) curCity = cities[0].id;
   $("#cityTabs").innerHTML = cities.map((c) => `<div class="ct ${c.id === curCity ? "active" : ""}" data-id="${c.id}">${esc(c["name_" + lang])}</div>`).join("");
   $("#cityTabs").querySelectorAll(".ct").forEach((el) => { el.onclick = () => { curCity = +el.dataset.id; renderCities(); renderWiki(); }; });
@@ -423,7 +450,7 @@ async function renderCities() {
 }
 async function renderWiki() {
   if (!curCity) return;
-  const rows = await (await fetch("/api/wiki?city_id=" + curCity)).json();
+  const rows = await apiCached("/api/wiki?city_id=" + curCity, "wiki_" + curCity);
   $("#wikiList").innerHTML = rows.map((w) => `<div class="w"><span class="wc">${esc(w["cat_" + lang])}</span><h3>${esc(w["title_" + lang])}</h3><p>${esc(w["body_" + lang])}</p>${favStar("guide", w.id, w["title_" + lang], w["body_" + lang])}</div>`).join("");
 }
 
@@ -730,18 +757,18 @@ async function renderPlan() {
   $("#planArrivalSave").onclick = () => { const d = $("#planArrival").value; if (d) saveArrival(d); };
   $("#planShare").onclick = () => { renderShareCard(); $("#shareCard").scrollIntoView({ behavior: "smooth" }); };
   // cities for smart checklist
-  const cities = await (await fetch("/api/cities")).json();
+  const cities = await apiCached("/api/cities", "cities");
   $("#planCity").innerHTML = `<option value="">${P.plan_pick}</option>` + cities.map((c) => `<option value="${c.id}">${esc(c["name_" + lang])}</option>`).join("");
   $("#planGen").onclick = async () => {
     const cityId = $("#planCity").value, school = $("#planSchool").value;
-    const tasks = await (await fetch("/api/checklist")).json();
+    const tasks = await apiCached("/api/checklist", "checklist");
     let html = tasks.map((t, i) => {
       const key = "plan_" + school + "_" + t.cat;
       const done = localStorage.getItem("plan_task_" + school + "_" + i) === "1";
       return `<label class="pli"><input type="checkbox" data-k="plan_task_${school}_${i}" ${done ? "checked" : ""}> <b>${esc(t["name_" + lang])}</b> <span class="muted">${esc(t["desc_" + lang])}</span></label>`;
     }).join("");
     if (cityId) {
-      const w = await (await fetch("/api/wiki?city_id=" + cityId)).json();
+      const w = await apiCached("/api/wiki?city_id=" + cityId, "wiki_" + cityId);
       if (w.length) html += `<div class="note">📍 ${esc(cities.find((c) => c.id == cityId)["name_" + lang])}：${esc(w[0]["body_" + lang])}</div>`;
     }
     $("#planChecklist").innerHTML = html;
@@ -769,7 +796,7 @@ async function renderPlan() {
 let commKind = "buddy";
 async function renderComm() {
   const C = COMM_I18N[lang];
-  const cities = await (await fetch("/api/cities")).json();
+  const cities = await apiCached("/api/cities", "cities");
   $("#commCity").innerHTML = `<option value="">${C.comm_city}</option>` + cities.map((c) => `<option value="${c.id}">${esc(c["name_" + lang])}</option>`).join("");
   // segment buttons
   $("#commSeg").querySelectorAll(".seg-btn").forEach((b) => { b.onclick = () => { commKind = b.dataset.k; $("#commSeg").querySelectorAll(".seg-btn").forEach((x) => x.classList.remove("active")); b.classList.add("active"); renderCommList(); renderCommForm(); }; });
@@ -793,7 +820,7 @@ async function renderCommList() {
     } else { hero.classList.add("hidden"); }
     $("#commList").innerHTML = list.length ? list.map((b) => `<div class="pli"><div><b>${esc(b.name)}</b> <span class="muted">· ${esc(b.school)}</span></div><div class="muted">🛬 ${esc(b.arrive)}</div>${b.note ? `<div>${esc(b.note)}</div>` : ""}</div>`).join("") : `<p class="muted">${C.b_empty}</p>`;
   } else if (commKind === "senior") {
-    const list = await (await fetch("/api/senior_tips" + (cid ? "?city_id=" + cid : ""))).json();
+    const list = await apiCached("/api/senior_tips" + (cid ? "?city_id=" + cid : ""), "senior_" + (cid || "all"));
     $("#commList").innerHTML = list.length ? list.map((t) => `<div class="pli"><div><b>${esc(t.school)}</b> <span class="muted">· ${esc(t.name)}</span></div><div>${esc(t["body_" + lang])}</div></div>`).join("") : `<p class="muted">${C.p_empty}</p>`;
   } else {
     const kind = commKind === "info" ? "info" : "second";

@@ -210,3 +210,5 @@ textarea.fld { resize: vertical; font-family: inherit; }
 .sc-bar { height: 8px; background: rgba(255,255,255,0.18); border-radius: 6px; margin: 8px 0 4px; overflow: hidden; }
 .sc-fill { height: 100%; background: #5ef0c5; border-radius: 6px; }
 .sc-foot { margin-top: 12px; font-size: 14px; font-weight: 700; text-align: center; color: #5ef0c5; }
+/* ---- Offline badge ---- */
+.offline-badge { position: sticky; top: 0; z-index: 30; text-align: center; font-size: 12px; padding: 6px 10px; background: #fff4e5; color: #b26a00; border-bottom: 1px solid #ffe0b3; }
