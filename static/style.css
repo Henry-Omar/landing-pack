@@ -200,3 +200,13 @@ textarea.fld { resize: vertical; font-family: inherit; }
 /* ---- Community hero ---- */
 .comm-hero { background: linear-gradient(135deg, rgba(124,92,255,0.10), rgba(0,229,255,0.10)); border: 1px solid #e3def7; border-radius: 14px; padding: 12px 14px; font-size: 14px; color: #3a5161; margin-bottom: 12px; }
 .comm-hero b { color: #7c5cff; }
+/* ---- Parent-share card ---- */
+.share-card { margin-top: 12px; }
+.sc-inner { background: linear-gradient(160deg, #2b5876, #4e4376); color: #fff; border-radius: 18px; padding: 18px 18px 16px; box-shadow: 0 8px 24px rgba(43,88,118,0.25); max-width: 360px; }
+.sc-top { font-size: 12px; opacity: 0.85; letter-spacing: 0.5px; }
+.sc-title { font-size: 19px; font-weight: 800; margin: 6px 0 14px; }
+.sc-row { display: flex; justify-content: space-between; font-size: 14px; padding: 6px 0; border-bottom: 1px solid rgba(255,255,255,0.12); }
+.sc-row b { font-weight: 700; }
+.sc-bar { height: 8px; background: rgba(255,255,255,0.18); border-radius: 6px; margin: 8px 0 4px; overflow: hidden; }
+.sc-fill { height: 100%; background: #5ef0c5; border-radius: 6px; }
+.sc-foot { margin-top: 12px; font-size: 14px; font-weight: 700; text-align: center; color: #5ef0c5; }

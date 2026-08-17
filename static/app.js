@@ -90,7 +90,7 @@ const PLAN_I18N = {
     plan_smart: "智能落地清单", plan_uni: "大学新生", plan_lang: "语言/预科", plan_grad: "研究生",
     plan_gen: "生成", plan_7: "落地前 7 天", plan_arrive: "到达日期", plan_7go: "生成日程",
     plan_fav: "我的收藏", plan_empty: "还没有收藏。在问答/指南点 ⭐ 收藏。",
-    plan_pick: "选择城市与身份，生成专属清单", plan_done: "已生成", plan_save_arr: "保存落地日", cd_days: "天到落地", cd_arr: "天前落地", cd_today: "今天落地！", cd_task: "今日任务", cd_set: "设置你的落地日，开启倒计时",
+    plan_pick: "选择城市与身份，生成专属清单", plan_done: "已生成", plan_save_arr: "保存落地日", cd_days: "天到落地", cd_arr: "天前落地", cd_today: "今天落地！", cd_task: "今日任务", cd_set: "设置你的落地日，开启倒计时", plan_share: "报平安 · 发给爸妈", plan_share_sub: "一键生成进度卡片，截图发微信，让爸妈放心。", plan_share_btn: "💌 生成给爸妈的卡片",
     d1: "抵达：办本地手机卡 / eSIM，换钱或绑卡", d2: "学校报到：带录取信、护照、照片",
     d3: "开银行卡：预约，备齐材料", d4: "办交通卡（地铁/公交）", d5: "买日用品 + 食材（电饭煲！）",
     d6: "体检/疫苗（按学校要求）", d7: "熟悉校园 + 加同校群",
@@ -101,7 +101,7 @@ const PLAN_I18N = {
     plan_smart: "Smart arrival checklist", plan_uni: "University freshman", plan_lang: "Language/prep", plan_grad: "Graduate",
     plan_gen: "Generate", plan_7: "First 7 days", plan_arrive: "Arrival date", plan_7go: "Make plan",
     plan_fav: "My favorites", plan_empty: "No favorites yet. Tap ⭐ on Q&A / guides.",
-    plan_pick: "Pick city & status to build your checklist", plan_done: "Generated", plan_save_arr: "Save arrival", cd_days: "days to landing", cd_arr: "days since landing", cd_today: "Landing day!", cd_task: "Today's task", cd_set: "Set your landing date to start the countdown",
+    plan_pick: "Pick city & status to build your checklist", plan_done: "Generated", plan_save_arr: "Save arrival", cd_days: "days to landing", cd_arr: "days since landing", cd_today: "Landing day!", cd_task: "Today's task", cd_set: "Set your landing date to start the countdown", plan_share: "Reassure parents", plan_share_sub: "One-tap progress card to screenshot & send on WeChat.", plan_share_btn: "💌 Generate a card for my parents",
     d1: "Arrive: get local SIM/eSIM, exchange/bind card", d2: "Register at school: offer letter, passport, photos",
     d3: "Open bank account: book + prep docs", d4: "Get transit card (metro/bus)", d5: "Buy daily stuff + food (rice cooker!)",
     d6: "Medical check / vaccines (per school)", d7: "Explore campus + join school group",
@@ -254,6 +254,39 @@ function saveArrival(date) {
   myArrival = date; localStorage.setItem("lp_arrival", date);
   fetch("/api/set_arrival", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ uid, arrival: date }) });
   renderCountdown();
+}
+function renderShareCard() {
+  const P = PLAN_I18N[lang];
+  const name = (localStorage.getItem("lp_name") || "孩子");
+  // countdown
+  let cdText = P.cd_set;
+  if (myArrival) {
+    const days = Math.round((new Date(myArrival + "T00:00:00") - new Date()) / 86400000);
+    cdText = days > 0 ? `还有 ${days} 天落地` : (days === 0 ? "今天落地！" : `已落地 ${Math.abs(days)} 天`);
+  }
+  // checklist progress (localStorage completion keys: done_* and plan_task_*)
+  const doneKeys = Object.keys(localStorage).filter((k) => k.startsWith("done_") || k.startsWith("plan_task_"));
+  const total = doneKeys.length || 1;
+  const done = doneKeys.filter((k) => localStorage.getItem(k) === "1").length;
+  const pct = Math.round((done / total) * 100);
+  // school + city
+  const citySel = $("#planCity");
+  const city = citySel && citySel.selectedOptions && citySel.selectedOptions[0] ? citySel.selectedOptions[0].text : "—";
+  const favs = getFavs().length;
+  const card = `
+    <div class="sc-inner">
+      <div class="sc-top">🛫 Landing Pack · 留学生落地包</div>
+      <div class="sc-title">${esc(name)} 的留学落地进度</div>
+      <div class="sc-row"><span>落地倒计时</span><b>${esc(cdText)}</b></div>
+      <div class="sc-row"><span>清单完成</span><b>${pct}% （${done}/${total}）</b></div>
+      <div class="sc-bar"><div class="sc-fill" style="width:${pct}%"></div></div>
+      <div class="sc-row"><span>目标城市</span><b>${esc(city)}</b></div>
+      <div class="sc-row"><span>已收藏</span><b>${favs} 条</b></div>
+      <div class="sc-foot">爸妈放心，我在认真准备 ✅</div>
+    </div>`;
+  const el = $("#shareCard");
+  el.innerHTML = card;
+  el.classList.remove("hidden");
 }
 function updateAuthUI() {
   const L = I18N[lang];
@@ -695,6 +728,7 @@ async function renderPlan() {
   // arrival date (drives the countdown hero)
   $("#planArrival").value = myArrival || "";
   $("#planArrivalSave").onclick = () => { const d = $("#planArrival").value; if (d) saveArrival(d); };
+  $("#planShare").onclick = () => { renderShareCard(); $("#shareCard").scrollIntoView({ behavior: "smooth" }); };
   // cities for smart checklist
   const cities = await (await fetch("/api/cities")).json();
   $("#planCity").innerHTML = `<option value="">${P.plan_pick}</option>` + cities.map((c) => `<option value="${c.id}">${esc(c["name_" + lang])}</option>`).join("");
