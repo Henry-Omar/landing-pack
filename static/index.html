@@ -139,6 +139,8 @@
     <div id="adminProducts" class="admin-products"></div>
     <h3 class="sec" data-i18n="admin_mod">内容审核 · 问答</h3>
     <div id="adminQA" class="admin-qa"></div>
+    <h3 class="sec" data-i18n="admin_community">社区审核 · 找同伴/本地信息</h3>
+    <div id="adminCommunity" class="admin-qa"></div>
   </main>
 
   <main id="view-plan" class="view hidden">
@@ -165,6 +167,23 @@
     <div id="planFavs" class="plan-list"></div>
   </main>
 
+  <main id="view-comm" class="view hidden">
+    <h2 data-i18n="comm_title">社区</h2>
+    <p class="muted" data-i18n="comm_sub">找同伴 · 本地信息 · 二手</p>
+    <div class="seg" id="commSeg">
+      <button class="seg-btn active" data-k="buddy" data-i18n="comm_buddy">找同伴</button>
+      <button class="seg-btn" data-k="info" data-i18n="comm_info">本地信息</button>
+      <button class="seg-btn" data-k="second" data-i18n="comm_second">二手</button>
+    </div>
+    <div class="plan-row">
+      <select id="commCity" class="fld"></select>
+    </div>
+    <div id="commList" class="plan-list"></div>
+    <div class="sec-h" data-i18n="comm_post">发布</div>
+    <div id="commForm"></div>
+    <p class="muted" data-i18n="comm_mod">内容需管理员审核后显示。</p>
+  </main>
+
   <nav class="tabbar">
     <button class="tab active" data-view="check">✅ <span data-i18n="tab_check">清单</span></button>
     <button class="tab" data-view="guide">🗺 <span data-i18n="tab_guide">指南</span></button>
@@ -175,9 +194,10 @@
     <button class="tab" data-view="mentors">🎓 <span data-i18n="tab_mentor">前辈</span></button>
     <button class="tab" data-view="tools">🧰 <span data-i18n="tab_tools">工具</span></button>
     <button class="tab" data-view="plan">🗓 <span data-i18n="tab_plan">计划</span></button>
+    <button class="tab" data-view="comm">💬 <span data-i18n="tab_comm">社区</span></button>
     <button class="tab hidden" id="tabAdmin" data-view="admin">🛡 <span data-i18n="tab_admin">管理</span></button>
   </nav>
 
-  <script src="/static/app.js?v=11"></script>
+  <script src="/static/app.js?v=12"></script>
 </body>
 </html>

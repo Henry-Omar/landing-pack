@@ -584,6 +584,9 @@ def init():
     CREATE TABLE IF NOT EXISTS user_school_checks(user_id TEXT, school_task_id INTEGER, done INTEGER DEFAULT 0, PRIMARY KEY(user_id, school_task_id));
     CREATE TABLE IF NOT EXISTS school_notes(id INTEGER PRIMARY KEY AUTOINCREMENT, school_id INTEGER, note_en TEXT, note_zh TEXT);
     CREATE TABLE IF NOT EXISTS subscribers(id INTEGER PRIMARY KEY AUTOINCREMENT, user_id TEXT, plan TEXT DEFAULT 'pro', status TEXT DEFAULT 'active', expires_at TEXT, created_at TEXT DEFAULT (datetime('now')));
+    -- Community: buddy matcher + local board. status='pending' until admin approves (China UGC 备案 compliance).
+    CREATE TABLE IF NOT EXISTS buddies(id INTEGER PRIMARY KEY AUTOINCREMENT, user_id TEXT, name TEXT, school TEXT, city_id INTEGER, arrive TEXT, wechat TEXT, note TEXT, status TEXT DEFAULT 'pending', created_at TEXT DEFAULT (datetime('now')));
+    CREATE TABLE IF NOT EXISTS posts(id INTEGER PRIMARY KEY AUTOINCREMENT, user_id TEXT, name TEXT, kind TEXT DEFAULT 'info', city_id INTEGER, title TEXT, body TEXT, contact TEXT, status TEXT DEFAULT 'pending', created_at TEXT DEFAULT (datetime('now')));
 
     """)
     if c.execute("SELECT COUNT(*) FROM checklist").fetchone()[0] == 0:
@@ -755,6 +758,30 @@ class H(http.server.BaseHTTPRequestHandler):
             sid = qs.get("school_id", [""])[0]
             c = db(); row = c.execute("SELECT note_en,note_zh FROM school_notes WHERE school_id=?", (sid,)).fetchone(); c.close()
             self._j({"note_en": row["note_en"] if row else "", "note_zh": row["note_zh"] if row else ""}); return
+        # ---- Community (public = only approved items) ----
+        if p.path == "/api/buddies":
+            cid = qs.get("city_id", [""])[0]
+            c = db()
+            q = "SELECT id,name,school,city_id,arrive,note FROM buddies WHERE status='approved'"
+            params = []
+            if cid:
+                q += " AND city_id=?"; params.append(cid)
+            q += " ORDER BY id DESC"
+            rows = c.execute(q, params).fetchall(); c.close()
+            self._j([dict(r) for r in rows]); return
+        if p.path == "/api/posts":
+            cid = qs.get("city_id", [""])[0]
+            kind = qs.get("kind", [""])[0]
+            c = db()
+            q = "SELECT id,name,kind,city_id,title,body FROM posts WHERE status='approved'"
+            params = []
+            if cid:
+                q += " AND city_id=?"; params.append(cid)
+            if kind:
+                q += " AND kind=?"; params.append(kind)
+            q += " ORDER BY id DESC"
+            rows = c.execute(q, params).fetchall(); c.close()
+            self._j([dict(r) for r in rows]); return
         if p.path == "/api/health":
             self._j({"status": "ok", "provider": PAYMENT_PROVIDER, "stripe": bool(STRIPE_SECRET_KEY), "webhook": bool(STRIPE_WEBHOOK_SECRET), "wechat": bool(WECHAT_MCH_ID and WECHAT_APIV3_KEY), "alipay": bool(ALIPAY_APP_ID and ALIPAY_APP_SECRET)}); return
         # ---- Admin console (gated: only ADMIN_EMAIL) ----
@@ -789,6 +816,13 @@ class H(http.server.BaseHTTPRequestHandler):
                     ans = c.execute("SELECT id,name,lang,text FROM answers WHERE q_id=?", (q["id"],)).fetchall()
                     d = dict(q); d["answers"] = [dict(a) for a in ans]; out.append(d)
                 c.close(); self._j(out); return
+            # ---- Community moderation ----
+            if p.path == "/api/admin/community":
+                c = db()
+                bud = c.execute("SELECT id,name,school,city_id,arrive,note,status FROM buddies ORDER BY id DESC").fetchall()
+                pos = c.execute("SELECT id,name,kind,city_id,title,body,status FROM posts ORDER BY id DESC").fetchall()
+                c.close()
+                self._j({"buddies": [dict(r) for r in bud], "posts": [dict(r) for r in pos]}); return
             self._j({"error": "unknown_admin"}); return
         self._j({"error": "unknown"})
 
@@ -990,6 +1024,25 @@ class H(http.server.BaseHTTPRequestHandler):
         if p.path == "/api/school_check":
             c = db(); c.execute("INSERT OR REPLACE INTO user_school_checks(user_id,school_task_id,done) VALUES(?,?,?)", (b.get("uid"), b.get("task_id"), b.get("done", 1))); c.commit(); c.close()
             self._j({"ok": True}); return
+        # ---- Community submit (status='pending' until admin approves) ----
+        if p.path == "/api/buddy_add":
+            if not b.get("uid"):
+                self._j({"error": "login"}); return
+            c = db()
+            c.execute("INSERT INTO buddies(user_id,name,school,city_id,arrive,wechat,note,status) VALUES(?,?,?,?,?,?,?,'pending')",
+                      (b.get("uid"), (b.get("name") or "同学").strip(), (b.get("school") or "").strip(),
+                       int(b.get("city_id") or 0), (b.get("arrive") or "").strip(), (b.get("wechat") or "").strip(), (b.get("note") or "").strip()))
+            c.commit(); c.close()
+            self._j({"ok": True, "pending": True}); return
+        if p.path == "/api/post_add":
+            if not b.get("uid"):
+                self._j({"error": "login"}); return
+            c = db()
+            c.execute("INSERT INTO posts(user_id,name,kind,city_id,title,body,contact,status) VALUES(?,?,?,?,?,?,?,'pending')",
+                      (b.get("uid"), (b.get("name") or "同学").strip(), (b.get("kind") or "info"), int(b.get("city_id") or 0),
+                       (b.get("title") or "").strip(), (b.get("body") or "").strip(), (b.get("contact") or "").strip()))
+            c.commit(); c.close()
+            self._j({"ok": True, "pending": True}); return
         # ---- Admin console POST (gated: only ADMIN_EMAIL) ----
         if p.path.startswith("/api/admin/"):
             uid = b.get("uid")
@@ -1008,6 +1061,12 @@ class H(http.server.BaseHTTPRequestHandler):
                     c.execute("DELETE FROM answers WHERE q_id=?", (b["q_id"],))
                     c.execute("DELETE FROM questions WHERE id=?", (b["q_id"],))
                 c.commit(); c.close(); self._j({"ok": True}); return
+            if p.path == "/api/admin/mod":
+                if b.get("what") == "buddy":
+                    c = db(); c.execute("UPDATE buddies SET status=? WHERE id=?", (b.get("status"), b.get("id"))); c.commit(); c.close()
+                elif b.get("what") == "post":
+                    c = db(); c.execute("UPDATE posts SET status=? WHERE id=?", (b.get("status"), b.get("id"))); c.commit(); c.close()
+                self._j({"ok": True}); return
         self._j({"error": "unknown"})
 
 

@@ -32,7 +32,7 @@ const I18N = {
     kit_mine: "我的落地包", kit_buy: "购买", kit_owned: "已拥有 · 查看", kit_view: "查看", kit_download: "下载", kit_pay_hint: "模拟支付（部署时接入 Stripe / 微信支付）",
     mentor_title: "前辈预约", mentor_sub: "向同校学长学姐预约 1 对 1 咨询。",
     mentor_mine: "我的预约", mentor_book: "预约", mentor_cancel: "取消", mentor_confirm: "确认", mentor_topic_ph: "想咨询的问题", school_title: "你的学校专属清单", school_sub: "选择你的学校，查看该校同学独有的行前任务。", school_select_ph: "选择你的学校…", school_none: "选择学校后显示专属清单", dl_pack: "下载打包清单",
- admin_title: "管理后台", admin_sub: "仅管理员可见 · 合作管理 / 内容审核 / 数据总览", admin_partners: "合作方管理（用户不可见）", admin_partners_sub: "填入你的专属返佣链接，保存即生效，用户端不变。", admin_mod: "内容审核 · 问答", admin_save: "保存", admin_del: "删除", admin_overview: "数据总览", tab_admin: "管理", tab_sub: "会员",
+ admin_title: "管理后台", admin_sub: "仅管理员可见 · 合作管理 / 内容审核 / 数据总览", admin_partners: "合作方管理（用户不可见）", admin_partners_sub: "填入你的专属返佣链接，保存即生效，用户端不变。", admin_mod: "内容审核 · 问答", admin_community: "社区审核 · 找同伴/本地信息", admin_save: "保存", admin_del: "删除", admin_overview: "数据总览", tab_admin: "管理", tab_sub: "会员",
  sub_title: "会员订阅", sub_sub: "升级 PRO，解锁全部技能", sub_month: "月付 ¥29", sub_year: "年付 ¥199（省 72）", sub_upgrade: "升级 PRO", sub_current: "当前会员", sub_free: "免费用户", sub_pro_badge: "PRO", sub_perks: "PRO 专属：全部落地包免费、专属清单、前辈预约 9 折、问答优先、无广告", sub_cancel: "会员到期", sub_manage: "管理订阅",
  pro_only: "PRO 专属", pro_unlock: "升级 PRO 解锁", coming_soon: "即将上线",
     tools_title: "实用工具", tools_sub: "落地生活小助手 · 免费",
@@ -67,7 +67,7 @@ const I18N = {
     kit_mine: "My Kits", kit_buy: "Buy", kit_owned: "Owned · View", kit_view: "View", kit_download: "Download", kit_pay_hint: "Mock payment (wire Stripe / WeChat Pay on deploy)",
     mentor_title: "Mentor Booking", mentor_sub: "Book a 1:1 with a senior student at your school.",
     mentor_mine: "My Bookings", mentor_book: "Book", mentor_cancel: "Cancel", mentor_confirm: "Confirm", mentor_topic_ph: "What to ask", school_title: "Your school's checklist", school_sub: "Pick your school to see tasks unique to its students.", school_select_ph: "Select your school…", school_none: "Select a school to see its checklist", dl_pack: "Download packing list",
- admin_title: "Admin Console", admin_sub: "Admin only · partnerships / moderation / overview", admin_partners: "Partner management (hidden from users)", admin_partners_sub: "Paste your affiliate tracking links; saved instantly, user shop unchanged.", admin_mod: "Moderation · Q&A", admin_save: "Save", admin_del: "Delete", admin_overview: "Overview", tab_admin: "Admin", tab_sub: "Pro",
+ admin_title: "Admin Console", admin_sub: "Admin only · partnerships / moderation / overview", admin_partners: "Partner management (hidden from users)", admin_partners_sub: "Paste your affiliate tracking links; saved instantly, user shop unchanged.", admin_mod: "Moderation · Q&A", admin_community: "Community moderation", admin_save: "Save", admin_del: "Delete", admin_overview: "Overview", tab_admin: "Admin", tab_sub: "Pro",
  sub_title: "Membership", sub_sub: "Upgrade to PRO, unlock all skills", sub_month: "Monthly ¥29", sub_year: "Yearly ¥199 (save 72)", sub_upgrade: "Upgrade to PRO", sub_current: "Current plan", sub_free: "Free user", sub_pro_badge: "PRO", sub_perks: "PRO perks: all Kits free, exclusive checklists, mentor booking 10% off, priority Q&A, no ads", sub_cancel: "Expires", sub_manage: "Manage",
  pro_only: "PRO only", pro_unlock: "Unlock with PRO", coming_soon: "Coming soon",
  tools_title: "Tools", tools_sub: "Everyday landing helpers · free",
@@ -108,6 +108,24 @@ const PLAN_I18N = {
     fav_qa: "Q&A", fav_guide: "Guide", fav_tool: "Tool", unfav: "Remove",
   },
 };
+const COMM_I18N = {
+  zh: {
+    comm_title: "社区", comm_sub: "找同伴 · 本地信息 · 二手", comm_buddy: "找同伴", comm_info: "本地信息", comm_second: "二手",
+    comm_post: "发布", comm_mod: "内容需管理员审核后显示。", comm_city: "全部城市",
+    b_name: "昵称", b_school: "学校", b_arrive: "到达时间", b_wechat: "微信(选填)", b_note: "留言(选填)", b_publish: "发布找同伴",
+    p_title: "标题", p_body: "内容", p_contact: "联系方式(选填)", p_publish: "发布", p_kind_info: "本地信息", p_kind_second: "二手",
+    pending: "已提交，审核通过后显示", b_empty: "暂无同伴，快来发布第一个！", p_empty: "暂无内容，发布第一条吧！",
+    city_label: "城市",
+  },
+  en: {
+    comm_title: "Community", comm_sub: "Find buddies · Local info · Second-hand", comm_buddy: "Buddies", comm_info: "Local info", comm_second: "Second-hand",
+    comm_post: "Post", comm_mod: "Posts are shown after admin review.", comm_city: "All cities",
+    b_name: "Nickname", b_school: "School", b_arrive: "Arrival", b_wechat: "WeChat (opt)", b_note: "Note (opt)", b_publish: "Post buddy request",
+    p_title: "Title", p_body: "Content", p_contact: "Contact (opt)", p_publish: "Publish", p_kind_info: "Local info", p_kind_second: "Second-hand",
+    pending: "Submitted; shown after review", b_empty: "No buddies yet — be the first!", p_empty: "Nothing here yet — post first!",
+    city_label: "City",
+  },
+};
 const CATS = ["all", "sim", "insurance", "flight", "bank", "essentials"];
 // Monetization toggle. Free-launch = false (buttons show "coming soon", no dead payment flow).
 // Flip to true (after you register the company + connect 微信/支付宝/Stripe) to enable sales.
@@ -142,6 +160,7 @@ function applyLang() {
   if ($("#view-sub").classList.contains("active")) renderSub();
   if ($("#view-tools").classList.contains("active")) renderTools();
   if ($("#view-plan").classList.contains("active")) renderPlan();
+  if ($("#view-comm").classList.contains("active")) renderComm();
   if ($("#view-admin").classList.contains("active") && !$("#tabAdmin").classList.contains("hidden")) renderAdmin();
 }
 function setLang(l) {
@@ -671,6 +690,52 @@ async function renderPlan() {
     : `<p class="muted">${P.plan_empty}</p>`;
   $("#planFavs").querySelectorAll(".favbtn").forEach((b) => { b.onclick = () => { const a = getFavs(); a.splice(+b.dataset.idx, 1); setFavs(a); renderPlan(); }; });
 }
+// ---- Community tab: buddy matcher + local board + submit (moderated) ----
+let commKind = "buddy";
+async function renderComm() {
+  const C = COMM_I18N[lang];
+  const cities = await (await fetch("/api/cities")).json();
+  $("#commCity").innerHTML = `<option value="">${C.comm_city}</option>` + cities.map((c) => `<option value="${c.id}">${esc(c["name_" + lang])}</option>`).join("");
+  // segment buttons
+  $("#commSeg").querySelectorAll(".seg-btn").forEach((b) => { b.onclick = () => { commKind = b.dataset.k; $("#commSeg").querySelectorAll(".seg-btn").forEach((x) => x.classList.remove("active")); b.classList.add("active"); renderCommList(); renderCommForm(); }; });
+  renderCommList();
+  renderCommForm();
+}
+async function renderCommList() {
+  const C = COMM_I18N[lang];
+  const cid = $("#commCity").value;
+  if (commKind === "buddy") {
+    const list = await (await fetch("/api/buddies" + (cid ? "?city_id=" + cid : ""))).json();
+    $("#commList").innerHTML = list.length ? list.map((b) => `<div class="pli"><div><b>${esc(b.name)}</b> <span class="muted">· ${esc(b.school)}</span></div><div class="muted">🛬 ${esc(b.arrive)}</div>${b.note ? `<div>${esc(b.note)}</div>` : ""}</div>`).join("") : `<p class="muted">${C.b_empty}</p>`;
+  } else {
+    const kind = commKind === "info" ? "info" : "second";
+    const list = await (await fetch("/api/posts" + (cid ? "?city_id=" + cid + "&" : "?") + "kind=" + kind)).json();
+    $("#commList").innerHTML = list.length ? list.map((p) => `<div class="pli"><div><b>${esc(p.title)}</b> <span class="muted">· ${esc(p.name)}</span></div><div>${esc(p.body)}</div></div>`).join("") : `<p class="muted">${C.p_empty}</p>`;
+  }
+}
+function renderCommForm() {
+  const C = COMM_I18N[lang];
+  if (commKind === "buddy") {
+    $("#commForm").innerHTML = `<div class="plan-row"><input id="cbName" class="fld" placeholder="${C.b_name}"><input id="cbSchool" class="fld" placeholder="${C.b_school}"></div>
+      <div class="plan-row"><input id="cbArrive" class="fld" placeholder="${C.b_arrive}"><input id="cbWechat" class="fld" placeholder="${C.b_wechat}"></div>
+      <input id="cbNote" class="fld" placeholder="${C.b_note}" style="width:100%;margin-bottom:8px">
+      <button class="primary small" id="cbPub">${C.b_publish}</button>`;
+    $("#cbPub").onclick = async () => {
+      const d = await (await fetch("/api/buddy_add", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ uid, name: $("#cbName").value, school: $("#cbSchool").value, arrive: $("#cbArrive").value, wechat: $("#cbWechat").value, note: $("#cbNote").value }) })).json();
+      alert(d.pending ? C.pending : (d.error || "err"));
+    };
+  } else {
+    const kind = commKind === "info" ? "info" : "second";
+    $("#commForm").innerHTML = `<input id="cpTitle" class="fld" placeholder="${C.p_title}" style="width:100%;margin-bottom:8px">
+      <textarea id="cpBody" class="fld" placeholder="${C.p_body}" style="width:100%;height:64px;margin-bottom:8px"></textarea>
+      <div class="plan-row"><input id="cpContact" class="fld" placeholder="${C.p_contact}"><button class="primary small" id="cpPub">${C.p_publish}</button></div>`;
+    $("#cpPub").onclick = async () => {
+      const d = await (await fetch("/api/post_add", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ uid, kind, title: $("#cpTitle").value, body: $("#cpBody").value, contact: $("#cpContact").value }) })).json();
+      alert(d.pending ? C.pending : (d.error || "err"));
+    };
+  }
+  $("#commCity").onchange = renderCommList;
+}
 function subscribe(plan) {
   fetch("/api/subscribe", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ uid, plan }) })
     .then((r) => r.json()).then((d) => {
@@ -720,7 +785,18 @@ async function renderAdmin() {
   </div>`).join("") : `<p class="muted">${lang === "zh" ? "暂无问答" : "No Q&A"}</p>`;
   $("#adminQA").querySelectorAll(".adel").forEach((b) => { b.onclick = () => delQA(b.dataset.aid, null); });
   $("#adminQA").querySelectorAll(".adelq").forEach((b) => { b.onclick = () => delQA(null, b.dataset.qid); });
+  // moderation: community (buddies + posts)
+  const cm = await (await fetch("/api/admin/community?uid=" + uid)).json();
+  const modBtn = (what, id, label) => `<button class="btn-sm apsave" data-w="${what}" data-id="${id}">${label}</button>`;
+  $("#adminCommunity").innerHTML =
+    `<div class="sec" data-i18n="admin_comm_b">找同伴审核</div>` +
+    (cm.buddies.length ? cm.buddies.map((b) => `<div class="aq">${esc(b.name)} · ${esc(b.school)} · ${esc(b.arrive)} ${b.status !== "approved" ? modBtn("buddy", b.id, lang === "zh" ? "通过" : "Approve") + modBtn2("buddy", b.id, lang === "zh" ? "拒绝" : "Reject") : '<span class="apok">✓</span>'}</div>`).join("") : `<p class="muted">${lang === "zh" ? "暂无" : "None"}</p>`) +
+    `<div class="sec" data-i18n="admin_comm_p">本地信息/二手审核</div>` +
+    (cm.posts.length ? cm.posts.map((p) => `<div class="aq">[${esc(p.kind)}] ${esc(p.title)} · ${esc(p.name)} ${p.status !== "approved" ? modBtn("post", p.id, lang === "zh" ? "通过" : "Approve") + modBtn2("post", p.id, lang === "zh" ? "拒绝" : "Reject") : '<span class="apok">✓</span>'}</div>`).join("") : `<p class="muted">${lang === "zh" ? "暂无" : "None"}</p>`);
+  const allMod = $("#adminCommunity").querySelectorAll(".apsave");
+  allMod.forEach((b) => { b.onclick = async () => { await fetch("/api/admin/mod", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ uid, what: b.dataset.w, id: +b.dataset.id, status: b.textContent.indexOf("通过") >= 0 || b.textContent.indexOf("Approve") >= 0 ? "approved" : "rejected" }) }); renderAdmin(); }; });
 }
+function modBtn2(what, id, label) { return `<button class="btn-sm adelq" data-w="${what}" data-id="${id}">${label}</button>`; }
 async function delQA(answer_id, q_id) {
   await fetch("/api/admin/qa_delete", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ uid, answer_id: answer_id ? +answer_id : null, q_id: q_id ? +q_id : null }) });
   renderAdmin();
