@@ -110,7 +110,7 @@ const PLAN_I18N = {
 };
 const COMM_I18N = {
   zh: {
-    comm_title: "社区", comm_sub: "找同伴 · 本地信息 · 二手", comm_buddy: "找同伴", comm_info: "本地信息", comm_second: "二手",
+    comm_title: "社区", comm_sub: "找同伴 · 本地信息 · 二手", comm_buddy: "找同伴", comm_info: "本地信息", comm_second: "二手", comm_senior: "学长学姐说",
     comm_post: "发布", comm_mod: "内容需管理员审核后显示。", comm_city: "全部城市",
     b_name: "昵称", b_school: "学校", b_arrive: "到达时间", b_wechat: "微信(选填)", b_note: "留言(选填)", b_publish: "发布找同伴",
     p_title: "标题", p_body: "内容", p_contact: "联系方式(选填)", p_publish: "发布", p_kind_info: "本地信息", p_kind_second: "二手",
@@ -118,7 +118,7 @@ const COMM_I18N = {
     city_label: "城市",
   },
   en: {
-    comm_title: "Community", comm_sub: "Find buddies · Local info · Second-hand", comm_buddy: "Buddies", comm_info: "Local info", comm_second: "Second-hand",
+    comm_title: "Community", comm_sub: "Find buddies · Local info · Second-hand", comm_buddy: "Buddies", comm_info: "Local info", comm_second: "Second-hand", comm_senior: "Senior tips",
     comm_post: "Post", comm_mod: "Posts are shown after admin review.", comm_city: "All cities",
     b_name: "Nickname", b_school: "School", b_arrive: "Arrival", b_wechat: "WeChat (opt)", b_note: "Note (opt)", b_publish: "Post buddy request",
     p_title: "Title", p_body: "Content", p_contact: "Contact (opt)", p_publish: "Publish", p_kind_info: "Local info", p_kind_second: "Second-hand",
@@ -747,7 +747,20 @@ async function renderCommList() {
   const cid = $("#commCity").value;
   if (commKind === "buddy") {
     const list = await (await fetch("/api/buddies" + (cid ? "?city_id=" + cid : ""))).json();
+    // Co-pilot hero: how many peers are landing (same city / this week)
+    const all = await (await fetch("/api/buddies")).json();
+    const now = Date.now();
+    const sameCity = all.filter((b) => cid && b.city_id == cid).length;
+    const thisWeek = all.filter((b) => { const d = new Date(b.arrive); return d >= now - 86400000 && d <= now + 7 * 86400000; }).length;
+    const hero = $("#commHero");
+    if (all.length) {
+      hero.innerHTML = `👋 已有 <b>${all.length}</b> 位小伙伴在落地 · 同城 <b>${sameCity}</b> 人 · 本周落地 <b>${thisWeek}</b> 人`;
+      hero.classList.remove("hidden");
+    } else { hero.classList.add("hidden"); }
     $("#commList").innerHTML = list.length ? list.map((b) => `<div class="pli"><div><b>${esc(b.name)}</b> <span class="muted">· ${esc(b.school)}</span></div><div class="muted">🛬 ${esc(b.arrive)}</div>${b.note ? `<div>${esc(b.note)}</div>` : ""}</div>`).join("") : `<p class="muted">${C.b_empty}</p>`;
+  } else if (commKind === "senior") {
+    const list = await (await fetch("/api/senior_tips" + (cid ? "?city_id=" + cid : ""))).json();
+    $("#commList").innerHTML = list.length ? list.map((t) => `<div class="pli"><div><b>${esc(t.school)}</b> <span class="muted">· ${esc(t.name)}</span></div><div>${esc(t["body_" + lang])}</div></div>`).join("") : `<p class="muted">${C.p_empty}</p>`;
   } else {
     const kind = commKind === "info" ? "info" : "second";
     const list = await (await fetch("/api/posts" + (cid ? "?city_id=" + cid + "&" : "?") + "kind=" + kind)).json();

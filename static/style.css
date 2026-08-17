@@ -197,3 +197,6 @@ textarea.fld { resize: vertical; font-family: inherit; }
 .cd-label { font-size: 14px; color: #3a5161; font-weight: 600; }
 .cd-task { font-size: 13px; color: #5a6b7b; margin-top: 2px; }
 .cd-edit { border: none; background: #fff; border-radius: 10px; padding: 8px 12px; font-size: 12px; color: #2b5876; cursor: pointer; white-space: nowrap; }
+/* ---- Community hero ---- */
+.comm-hero { background: linear-gradient(135deg, rgba(124,92,255,0.10), rgba(0,229,255,0.10)); border: 1px solid #e3def7; border-radius: 14px; padding: 12px 14px; font-size: 14px; color: #3a5161; margin-bottom: 12px; }
+.comm-hero b { color: #7c5cff; }

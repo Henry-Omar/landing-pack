@@ -426,6 +426,14 @@ SCHOOL_NOTES = [
     (9, "Apply for your CoE via your faculty, then the visa. Within 14 days of arrival, register your address at the city office and get your Residence Card. Open a bank account only after you have the card.", "经研究科申请 CoE 再办签证。抵达 14 天内到区役所登记住址并领在留卡。有在留卡后才能开户。"),
     (10, "Waseda issues your CoE through admissions. After arrival, complete address registration and get your Residence Card. Open a bank account (Japan Post / SMBC) with the card + student ID.", "早稻田经招生办发 CoE。抵达后办住址登记与在留卡。凭在留卡+学生证开银行账户。"),
 ]
+SENIOR_TIPS = [
+    (1, "UCL", "Lina (UCL 2023)", "伦敦天气阴，带够保暖衣服；Oyster 学生卡省 30%，二手家具看 Facebook Marketplace。", "London is grey - pack warm layers; 18+ Student Oyster saves 30%; find second-hand furniture on FB Marketplace."),
+    (1, "LSE", "陈同学 (LSE 2022)", "BRP 领取后立刻开 Monzo 账户，线下租房一定要有 deposit protection 证明。", "After BRP, open Monzo immediately; for private rentals always get a deposit protection certificate."),
+    (2, "NYU", "David (NYU 2024)", "OMNY 刷手机就行；校内打工先办 SSN；中国超市在 Flushing，地铁直达。", "OMNY works with phone; on-campus jobs need SSN first; Flushing has Chinese supermarkets, subway-accessible."),
+    (5, "东京大学", "佐藤 (东大 2021)", "在留卡到手才能开户；二手自行车看 Mercari；语言学校先练日语更有用。", "You need the Residence Card to open a bank account; bikes on Mercari; learn Japanese early."),
+    (3, "USYD", "阿杰 (悉尼大学 2023)", "OSHC 必须买；Opal 学生有优惠；合租注意 bond 交 RTA 托管别给房东。", "OSHC is mandatory; Opal has student concession; lodge bond with RTA, never the landlord."),
+    (4, "UofT", "Mia (UofT 2022)", "GIC 早准备；TCard 激活 ACORN；多伦多冬天极冷，带羽绒服。", "Prep GIC early; activate ACORN with TCard; Toronto winters are brutal - bring a down jacket."),
+]
 
 
 def db():
@@ -595,6 +603,7 @@ def init():
     -- Community: buddy matcher + local board. status='pending' until admin approves (China UGC 备案 compliance).
     CREATE TABLE IF NOT EXISTS buddies(id INTEGER PRIMARY KEY AUTOINCREMENT, user_id TEXT, name TEXT, school TEXT, city_id INTEGER, arrive TEXT, wechat TEXT, note TEXT, status TEXT DEFAULT 'pending', created_at TEXT DEFAULT (datetime('now')));
     CREATE TABLE IF NOT EXISTS posts(id INTEGER PRIMARY KEY AUTOINCREMENT, user_id TEXT, name TEXT, kind TEXT DEFAULT 'info', city_id INTEGER, title TEXT, body TEXT, contact TEXT, status TEXT DEFAULT 'pending', created_at TEXT DEFAULT (datetime('now')));
+    CREATE TABLE IF NOT EXISTS senior_tips(id INTEGER PRIMARY KEY AUTOINCREMENT, city_id INTEGER, school TEXT, name TEXT, body_zh TEXT, body_en TEXT, status TEXT DEFAULT 'approved');
 
     """)
     if c.execute("SELECT COUNT(*) FROM checklist").fetchone()[0] == 0:
@@ -632,6 +641,8 @@ def init():
         c.executemany("INSERT INTO school_tasks(school_id,cat_en,cat_zh,task_en,task_zh) VALUES(?,?,?,?,?)", SCHOOL_TASKS)
     if c.execute("SELECT COUNT(*) FROM school_notes").fetchone()[0] == 0:
         c.executemany("INSERT INTO school_notes(school_id,note_en,note_zh) VALUES(?,?,?)", SCHOOL_NOTES)
+    if c.execute("SELECT COUNT(*) FROM senior_tips").fetchone()[0] == 0:
+        c.executemany("INSERT INTO senior_tips(city_id,school,name,body_zh,body_en) VALUES(?,?,?,?,?)", SENIOR_TIPS)
     if not c.execute("SELECT 1 FROM users WHERE email=?", ("demo@landing.pack",)).fetchone():
         c.execute("INSERT INTO users(id,email,password,name,lang) VALUES(?,?,?,?,?)",
                   ("u_demo", "demo@landing.pack", hash_pw("demo1234"), "Demo同学", "zh"))
@@ -791,6 +802,16 @@ class H(http.server.BaseHTTPRequestHandler):
                 q += " AND city_id=?"; params.append(cid)
             if kind:
                 q += " AND kind=?"; params.append(kind)
+            q += " ORDER BY id DESC"
+            rows = c.execute(q, params).fetchall(); c.close()
+            self._j([dict(r) for r in rows]); return
+        if p.path == "/api/senior_tips":
+            cid = qs.get("city_id", [""])[0]
+            c = db()
+            q = "SELECT id,city_id,school,name,body_zh,body_en FROM senior_tips WHERE status='approved'"
+            params = []
+            if cid:
+                q += " AND city_id=?"; params.append(cid)
             q += " ORDER BY id DESC"
             rows = c.execute(q, params).fetchall(); c.close()
             self._j([dict(r) for r in rows]); return
