@@ -1,0 +1,26 @@
+{
+  "name": "留学生落地包 · Landing Pack",
+  "short_name": "落地包",
+  "description": "留学落地第一站：行前清单、城市指南、同校同伴、倒计时。",
+  "lang": "zh-CN",
+  "start_url": "/?source=pwa",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#0f1622",
+  "theme_color": "#0f1622",
+  "icons": [
+    {
+      "src": "/static/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "/static/icon-mask.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "maskable"
+    }
+  ]
+}

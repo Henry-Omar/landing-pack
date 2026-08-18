@@ -222,3 +222,6 @@ textarea.fld { resize: vertical; font-family: inherit; }
 .ob-peers { margin: 8px 0; }
 .toast { position: fixed; left: 50%; bottom: 90px; transform: translateX(-50%) translateY(20px); background: #2b5876; color: #fff; padding: 10px 16px; border-radius: 10px; font-size: 13px; opacity: 0; pointer-events: none; transition: .25s; z-index: 200; max-width: 80%; text-align: center; }
 .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+/* ---- PWA install hint ---- */
+.pwa-hint { position: sticky; top: 0; z-index: 31; text-align: center; font-size: 12px; padding: 8px 10px; background: #eaf6ff; color: #1d5b86; border-bottom: 1px solid #cfe8fb; }
+.pwa-hint button { border: none; background: #1d5b86; color: #fff; border-radius: 8px; padding: 4px 10px; margin-left: 8px; font-size: 12px; cursor: pointer; }

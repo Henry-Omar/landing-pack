@@ -4,6 +4,11 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>留学生落地包 · Landing Pack</title>
+  <link rel="manifest" href="/static/manifest.webmanifest">
+  <meta name="theme-color" content="#0f1622">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <link rel="apple-touch-icon" href="/static/icon.svg">
   <link rel="stylesheet" href="/static/style.css?v=6">
 </head>
 <body>
@@ -23,6 +28,8 @@
   </header>
 
   <div id="offlineBadge" class="offline-badge hidden">📡 离线模式 · 显示已缓存内容</div>
+
+  <div id="pwaHint" class="pwa-hint hidden">📲 添加到主屏幕，像 App 一样随时打开：点浏览器分享 → “添加到主屏幕” <button id="pwaHintClose">知道了</button></div>
 
   <!-- HOME / AUTH (techno) -->
   <section id="home" class="home">
@@ -221,7 +228,7 @@
     <button class="tab hidden" id="tabAdmin" data-view="admin">🛡 <span data-i18n="tab_admin">管理</span></button>
   </nav>
 
-  <script src="/static/app.js?v=17"></script>
+  <script src="/static/app.js?v=18"></script>
 
   <!-- Onboarding modal (first login) -->
   <div id="onboard" class="modal hidden">

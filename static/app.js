@@ -273,6 +273,7 @@ function enterApp() {
   fetch("/api/admin/check?uid=" + uid + (at ? "&admin_token=" + encodeURIComponent(at) : "")).then((x) => x.json()).then((j) => {
     if (j.admin) { $("#tabAdmin").classList.remove("hidden"); } else { $("#tabAdmin").classList.add("hidden"); }
   }).catch(() => $("#tabAdmin").classList.add("hidden"));
+  maybeShowPwaHint();
 }
 let myArrival = localStorage.getItem("lp_arrival") || "";
 function renderCountdown() {
@@ -392,6 +393,15 @@ function checkInviteDeepLink() {
       const c = cs.find((x) => String(x.id) === String(inv));
       if (c) { localStorage.setItem("lp_invite_city", inv); toast("已为你预选城市：" + (c["name_" + lang] || c.name_zh)); }
     });
+  }
+}
+function maybeShowPwaHint() {
+  const isIOS = /iP(hone|ad|od)/.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+  const hint = $("#pwaHint");
+  if (!hint) return;
+  if (isIOS && !localStorage.getItem("lp_pwa_hint")) {
+    hint.classList.remove("hidden");
+    $("#pwaHintClose").onclick = () => { hint.classList.add("hidden"); localStorage.setItem("lp_pwa_hint", "1"); };
   }
 }
 function updateAuthUI() {
@@ -1018,6 +1028,10 @@ function modal(title, bodyHtml, onConfirm) {
 // ---- init ----
 (async () => {
   applyLang();
+  // Register service worker for PWA / offline install (ignore if unsupported).
+  if ("serviceWorker" in navigator) {
+    try { await navigator.serviceWorker.register("/static/sw.js"); } catch (e) {}
+  }
   if (uid) {
     const p = await (await fetch("/api/profile?uid=" + uid)).json();
     if (p.name) { myName = p.name; lang = p.lang || "zh"; mySchool = p.school_id || ""; enterApp(); return; }
