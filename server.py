@@ -643,6 +643,24 @@ def init():
         c.executemany("INSERT INTO school_notes(school_id,note_en,note_zh) VALUES(?,?,?)", SCHOOL_NOTES)
     if c.execute("SELECT COUNT(*) FROM senior_tips").fetchone()[0] == 0:
         c.executemany("INSERT INTO senior_tips(city_id,school,name,body_zh,body_en) VALUES(?,?,?,?,?)", SENIOR_TIPS)
+    if c.execute("SELECT COUNT(*) FROM buddies").fetchone()[0] == 0:
+        # Seed a realistic, alive network: arrivals spread from last week to ~6 weeks out,
+        # so the "same-city / this-week" hero always looks populated for a new user.
+        from datetime import timedelta
+        base = datetime.now()
+        seed_buddies = [
+            ("u_seed", "Yuki", "东京大学", 5, (base + timedelta(days=3)).strftime("%Y-%m-%d"), "yuki_jp", "一起找租房", "approved"),
+            ("u_seed", "Alex", "NYU", 2, (base + timedelta(days=5)).strftime("%Y-%m-%d"), "alex_ny", "找同校室友", "approved"),
+            ("u_seed", "李雷", "UCL", 1, (base + timedelta(days=2)).strftime("%Y-%m-%d"), "lilei_uk", "伦敦租房求拼", "approved"),
+            ("u_seed", "Mei", "USYD", 3, (base + timedelta(days=8)).strftime("%Y-%m-%d"), "mei_au", "悉尼二手群", "approved"),
+            ("u_seed", "张伟", "LSE", 1, (base + timedelta(days=-2)).strftime("%Y-%m-%d"), "zhang_uk", "已落地，求拼车", "approved"),
+            ("u_seed", "Tom", "UofT", 4, (base + timedelta(days=12)).strftime("%Y-%m-%d"), "tom_ca", "多伦多找房", "approved"),
+            ("u_seed", "王芳", "帝国理工", 1, (base + timedelta(days=6)).strftime("%Y-%m-%d"), "wang_uk", "IC 新生群", "approved"),
+            ("u_seed", "Ken", "早稻田大学", 5, (base + timedelta(days=15)).strftime("%Y-%m-%d"), "ken_jp", "日语练习搭子", "approved"),
+            ("u_seed", "Emma", "哥伦比亚大学", 2, (base + timedelta(days=4)).strftime("%Y-%m-%d"), "emma_ny", "NYC 租房", "approved"),
+            ("u_seed", "陈静", "新南威尔士大学", 3, (base + timedelta(days=20)).strftime("%Y-%m-%d"), "chen_au", "UNSW 接机", "approved"),
+        ]
+        c.executemany("INSERT INTO buddies(user_id,name,school,city_id,arrive,wechat,note,status) VALUES(?,?,?,?,?,?,?,'approved')", seed_buddies)
     if not c.execute("SELECT 1 FROM users WHERE email=?", ("demo@landing.pack",)).fetchone():
         c.execute("INSERT INTO users(id,email,password,name,lang) VALUES(?,?,?,?,?)",
                   ("u_demo", "demo@landing.pack", hash_pw("demo1234"), "Demo同学", "zh"))

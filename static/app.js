@@ -126,6 +126,22 @@ const COMM_I18N = {
     city_label: "City",
   },
 };
+const OB_I18N = {
+  zh: {
+    step1: "第 1 步 · 选城市", step2: "第 2 步 · 设落地日", step3: "第 3 步 · 找到同伴",
+    pick_city: "你要去哪个城市留学？", next: "下一步", done: "进入 App 🚀",
+    arrive_q: "你预计什么时候落地？", arrive_h: "设好后会显示倒计时。",
+    result: "太棒了！同城/同校已有小伙伴在准备落地：", invite_tip: "把链接发给同校同学，一起准备更安心 👇",
+    invite_btn: "📨 复制邀请链接", invited: "已复制，去微信发给同学吧！",
+  },
+  en: {
+    step1: "Step 1 · Pick city", step2: "Step 2 · Set landing date", step3: "Step 3 · Find buddies",
+    pick_city: "Which city are you studying in?", next: "Next", done: "Enter App 🚀",
+    arrive_q: "When do you expect to land?", arrive_h: "We'll show a countdown.",
+    result: "Awesome! Peers in your city/school are already preparing:", invite_tip: "Share the link with schoolmates to prep together 👇",
+    invite_btn: "📨 Copy invite link", invited: "Copied! Send it to classmates on WeChat.",
+  },
+};
 const CATS = ["all", "sim", "insurance", "flight", "bank", "essentials"];
 // Monetization toggle. Free-launch = false (buttons show "coming soon", no dead payment flow).
 // Flip to true (after you register the company + connect 微信/支付宝/Stripe) to enable sales.
@@ -177,6 +193,7 @@ function applyLang() {
   $("#langZh").classList.toggle("active", lang === "zh");
   $("#langEn").classList.toggle("active", lang === "en");
   updateAuthUI();
+  checkInviteDeepLink();
   if (!$("#home").classList.contains("hidden")) return;
   if ($("#view-check").classList.contains("active")) { renderChecklist(); loadSchools(); }
   if ($("#view-guide").classList.contains("active")) renderCities();
@@ -245,6 +262,7 @@ function enterApp() {
   document.querySelectorAll(".view").forEach((x) => x.classList.remove("active"));
   $("#view-check").classList.add("active");
   applyLang();
+  if (!localStorage.getItem("lp_onboarded")) runOnboard();
   // Load arrival date + render countdown hero
   fetch("/api/profile?uid=" + uid).then((x) => x.json()).then((j) => {
     if (j.arrival) { myArrival = j.arrival; }
@@ -314,6 +332,67 @@ function renderShareCard() {
   const el = $("#shareCard");
   el.innerHTML = card;
   el.classList.remove("hidden");
+}
+function runOnboard() {
+  const O = OB_I18N[lang];
+  const ob = $("#onboard"), body = $("#obBody"), step = $("#obStep"), next = $("#obNext");
+  let stage = 1, pickCity = "", pickArrive = "";
+  ob.classList.remove("hidden");
+  const dots = ob.querySelectorAll(".dot");
+  function render() {
+    dots.forEach((d, i) => d.classList.toggle("active", i === stage - 1));
+    if (stage === 1) {
+      step.textContent = O.step1;
+      body.innerHTML = `<p class="muted">${O.pick_city}</p><select id="obCity" class="fld"></select>`;
+      fetch("/api/cities").then((x) => x.json()).then((cs) => {
+        $("#obCity").innerHTML = cs.map((c) => `<option value="${c.id}">${esc(c["name_" + lang])}</option>`).join("");
+        if (pickCity) $("#obCity").value = pickCity;
+      });
+      next.textContent = O.next;
+    } else if (stage === 2) {
+      step.textContent = O.step2;
+      body.innerHTML = `<p class="muted">${O.arrive_q}</p><p class="muted">${O.arrive_h}</p><input id="obArrive" type="date" class="fld">`;
+      if (pickArrive) $("#obArrive").value = pickArrive;
+      next.textContent = O.next;
+    } else {
+      step.textContent = O.step3;
+      // count peers in chosen city
+      fetch("/api/buddies?city_id=" + pickCity).then((x) => x.json()).then((bs) => {
+        body.innerHTML = `<p class="muted">${O.result}</p><div class="ob-peers">${bs.slice(0, 4).map((b) => `<div class="pli"><div><b>${esc(b.name)}</b> <span class="muted">· ${esc(b.school)}</span></div><div class="muted">🛬 ${esc(b.arrive)}</div></div>`).join("") || "<p class='muted'>—</p>"}</div><p class="muted" style="margin-top:10px">${O.invite_tip}</p><button class="primary" id="obInvite" style="width:100%">${O.invite_btn}</button>`;
+        $("#obInvite").onclick = () => copyInvite(pickCity);
+      });
+      next.textContent = O.done;
+    }
+  }
+  next.onclick = () => {
+    if (stage === 1) { pickCity = $("#obCity").value; if (!pickCity) return; stage = 2; }
+    else if (stage === 2) { pickArrive = $("#obArrive").value; if (pickArrive) { myArrival = pickArrive; localStorage.setItem("lp_arrival", pickArrive); fetch("/api/set_arrival", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ uid, arrival: pickArrive }) }); } stage = 3; }
+    else { localStorage.setItem("lp_onboarded", "1"); ob.classList.add("hidden"); renderCountdown(); return; }
+    render();
+  };
+  render();
+}
+function copyInvite(cityId) {
+  const O = OB_I18N[lang];
+  const link = location.origin + "/?invite=" + (cityId || "");
+  if (navigator.clipboard) navigator.clipboard.writeText(link).then(() => toast(O.invited)).catch(() => toast(link));
+  else toast(link);
+}
+function toast(msg) {
+  let t = $("#toast");
+  if (!t) { t = document.createElement("div"); t.id = "toast"; t.className = "toast"; document.body.appendChild(t); }
+  t.textContent = msg; t.classList.add("show");
+  setTimeout(() => t.classList.remove("show"), 2200);
+}
+function checkInviteDeepLink() {
+  const p = new URLSearchParams(location.search);
+  const inv = p.get("invite");
+  if (inv) {
+    fetch("/api/cities").then((x) => x.json()).then((cs) => {
+      const c = cs.find((x) => String(x.id) === String(inv));
+      if (c) { localStorage.setItem("lp_invite_city", inv); toast("已为你预选城市：" + (c["name_" + lang] || c.name_zh)); }
+    });
+  }
 }
 function updateAuthUI() {
   const L = I18N[lang];
@@ -798,6 +877,7 @@ async function renderComm() {
   const C = COMM_I18N[lang];
   const cities = await apiCached("/api/cities", "cities");
   $("#commCity").innerHTML = `<option value="">${C.comm_city}</option>` + cities.map((c) => `<option value="${c.id}">${esc(c["name_" + lang])}</option>`).join("");
+  $("#commInvite").onclick = () => { const cid = ($("#commCity").value) || localStorage.getItem("lp_invite_city") || ""; copyInvite(cid); };
   // segment buttons
   $("#commSeg").querySelectorAll(".seg-btn").forEach((b) => { b.onclick = () => { commKind = b.dataset.k; $("#commSeg").querySelectorAll(".seg-btn").forEach((x) => x.classList.remove("active")); b.classList.add("active"); renderCommList(); renderCommForm(); }; });
   renderCommList();

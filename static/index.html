@@ -191,6 +191,7 @@
     <h2 data-i18n="comm_title">社区</h2>
     <p class="muted" data-i18n="comm_sub">找同伴 · 本地信息 · 二手</p>
     <div id="commHero" class="comm-hero hidden"></div>
+    <button class="primary" id="commInvite" style="margin-bottom:12px">📨 邀请同校同学</button>
     <div class="seg" id="commSeg">
       <button class="seg-btn active" data-k="buddy" data-i18n="comm_buddy">找同伴</button>
       <button class="seg-btn" data-k="info" data-i18n="comm_info">本地信息</button>
@@ -220,6 +221,16 @@
     <button class="tab hidden" id="tabAdmin" data-view="admin">🛡 <span data-i18n="tab_admin">管理</span></button>
   </nav>
 
-  <script src="/static/app.js?v=16"></script>
+  <script src="/static/app.js?v=17"></script>
+
+  <!-- Onboarding modal (first login) -->
+  <div id="onboard" class="modal hidden">
+    <div class="modal-card">
+      <div class="ob-step" id="obStep"></div>
+      <div class="ob-dots"><span class="dot active"></span><span class="dot"></span><span class="dot"></span></div>
+      <div id="obBody"></div>
+      <button class="primary" id="obNext" style="width:100%;margin-top:14px">下一步</button>
+    </div>
+  </div>
 </body>
 </html>

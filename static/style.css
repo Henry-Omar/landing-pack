@@ -212,3 +212,13 @@ textarea.fld { resize: vertical; font-family: inherit; }
 .sc-foot { margin-top: 12px; font-size: 14px; font-weight: 700; text-align: center; color: #5ef0c5; }
 /* ---- Offline badge ---- */
 .offline-badge { position: sticky; top: 0; z-index: 30; text-align: center; font-size: 12px; padding: 6px 10px; background: #fff4e5; color: #b26a00; border-bottom: 1px solid #ffe0b3; }
+/* ---- Onboarding modal ---- */
+.modal { position: fixed; inset: 0; background: rgba(20,30,45,0.55); display: flex; align-items: center; justify-content: center; z-index: 100; padding: 20px; }
+.modal-card { background: #fff; border-radius: 18px; padding: 22px; width: 100%; max-width: 380px; box-shadow: 0 12px 40px rgba(0,0,0,0.25); }
+.ob-step { font-size: 16px; font-weight: 800; color: #2b5876; margin-bottom: 12px; }
+.ob-dots { display: flex; gap: 6px; margin-bottom: 14px; }
+.ob-dots .dot { width: 8px; height: 8px; border-radius: 50%; background: #d7e0e8; transition: .2s; }
+.ob-dots .dot.active { background: #00b3cc; width: 22px; border-radius: 6px; }
+.ob-peers { margin: 8px 0; }
+.toast { position: fixed; left: 50%; bottom: 90px; transform: translateX(-50%) translateY(20px); background: #2b5876; color: #fff; padding: 10px 16px; border-radius: 10px; font-size: 13px; opacity: 0; pointer-events: none; transition: .25s; z-index: 200; max-width: 80%; text-align: center; }
+.toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
