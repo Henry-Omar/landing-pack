@@ -225,3 +225,6 @@ textarea.fld { resize: vertical; font-family: inherit; }
 /* ---- PWA install hint ---- */
 .pwa-hint { position: sticky; top: 0; z-index: 31; text-align: center; font-size: 12px; padding: 8px 10px; background: #eaf6ff; color: #1d5b86; border-bottom: 1px solid #cfe8fb; }
 .pwa-hint button { border: none; background: #1d5b86; color: #fff; border-radius: 8px; padding: 4px 10px; margin-left: 8px; font-size: 12px; cursor: pointer; }
+/* ---- Deadline tracker ---- */
+.dl-over { color: #e04848; font-weight: 700; }
+.dl-soon { color: #e08e00; font-weight: 700; }

@@ -192,6 +192,14 @@
     <p class="muted" data-i18n="plan_share_sub">一键生成进度卡片，截图发微信，让爸妈放心。</p>
     <button class="primary" id="planShare" data-i18n="plan_share_btn">💌 生成给爸妈的卡片</button>
     <div id="shareCard" class="share-card hidden"></div>
+    <div class="sec-h" data-i18n="plan_dl">签证与截止日</div>
+    <p class="muted" data-i18n="plan_dl_sub">记下签证到期、续签、体检、学费等关键日期，App 帮你倒计时提醒。</p>
+    <div class="plan-row">
+      <input id="dlName" class="fld" placeholder="事项" style="flex:1">
+      <input id="dlDate" type="date" class="fld">
+      <button class="primary small" id="dlAdd" data-i18n="plan_dl_add">添加</button>
+    </div>
+    <div id="dlList" class="plan-list"></div>
   </main>
 
   <main id="view-comm" class="view hidden">
@@ -228,7 +236,7 @@
     <button class="tab hidden" id="tabAdmin" data-view="admin">🛡 <span data-i18n="tab_admin">管理</span></button>
   </nav>
 
-  <script src="/static/app.js?v=18"></script>
+  <script src="/static/app.js?v=19"></script>
 
   <!-- Onboarding modal (first login) -->
   <div id="onboard" class="modal hidden">
