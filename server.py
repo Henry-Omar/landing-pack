@@ -33,6 +33,7 @@ WECHAT_APP_ID = os.environ.get("WECHAT_APP_ID", "")
 # Alipay: app id + app secret (HMAC-SHA256 notify verify; RSA2 is the production path)
 ALIPAY_APP_ID = os.environ.get("ALIPAY_APP_ID", "")
 ALIPAY_APP_SECRET = os.environ.get("ALIPAY_APP_SECRET", "")
+ALIPAY_RSA_PUBLIC_KEY = os.environ.get("ALIPAY_RSA_PUBLIC_KEY", "")
 ALIPAY_PUBLIC_KEY = os.environ.get("ALIPAY_PUBLIC_KEY", "")
 APP_BASE_URL = os.environ.get("APP_BASE_URL", "http://localhost:8000")
 
@@ -73,6 +74,14 @@ def _login_fail(ip):
 
 def _login_ok(ip):
     LOGIN_FAILS.pop(ip, None)
+
+RATE = {}
+def _rate_blocked(key, limit=5, window=60):
+    now = time.time()
+    RATE[key] = [t for t in RATE.get(key, []) if now - t < window]
+    return len(RATE[key]) >= limit
+def _rate_hit(key):
+    RATE.setdefault(key, []).append(time.time())
 
 CHECKLIST = [
     ("Visa", "签证", "Apply for student visa", "申请学生签证"),
@@ -543,11 +552,43 @@ def verify_wechat_sig(timestamp: str, nonce: str, body: bytes, sig: str, key: st
     return hmac.compare_digest(expected, sig)
 
 
+def rsa2_verify(pubkey_pem, msg, sig_b64):
+    """Pure-stdlib RSA2 (SHA256withRSA, PKCS#1 v1.5) verify vs Alipay RSA public key PEM. No deps."""
+    import base64
+    try:
+        der = base64.b64decode("".join(l for l in pubkey_pem.splitlines() if l and not l.startswith("---")))
+        i = 0
+        if der[i] != 0x30: return False
+        i += 1; i += (der[i] & 0x80) and (der[i+1] + 2) or 1
+        if der[i] != 0x30: return False
+        i += 1; i += (der[i] & 0x80) and (der[i+1] + 2) or 1
+        if der[i] != 0x02: return False
+        i += 1; ln = der[i+1] if not (der[i] & 0x80) else 0
+        i += 2; n = int.from_bytes(der[i:i+ln], "big"); i += ln
+        if der[i] != 0x02: return False
+        i += 1; ln = der[i+1] if not (der[i] & 0x80) else 0
+        i += 2; e = int.from_bytes(der[i:i+ln], "big")
+        s = int.from_bytes(base64.b64decode(sig_b64), "big")
+        m = pow(s, e, n)
+        em = m.to_bytes((n.bit_length() + 7) // 8, "big")
+        h = hashlib.sha256(msg.encode("utf-8")).digest()
+        prefix = b"\x30\x31\x30\x0d\x06\x09\x60\x86\x48\x01\x65\x03\x04\x02\x01\x05\x00\x04\x20"
+        if len(em) < len(prefix) + len(h) + 11: return False
+        if em[0] != 0x00 or em[1] != 0x01: return False
+        if not em.endswith(prefix + h): return False
+        return em[2:em.index(prefix)] == b"\xff" * (em.index(prefix) - 2)
+    except Exception:
+        return False
+
 def verify_alipay_sig(params: dict, sign: str, secret: str) -> bool:
-    """Alipay notify signature (HMAC-SHA256 over sorted k=v pairs, no sign param).
-    Production Alipay uses RSA2 (SHA256withRSA) with the platform public cert; this
-    HMAC path mirrors the signing scheme and is the testable stdlib fallback."""
-    if not secret or not sign:
+    """Alipay notify verify. Prefers RSA2 (SHA256withRSA) when ALIPAY_RSA_PUBLIC_KEY is set
+    (production path); falls back to HMAC-SHA256 (test/dev, no merchant keys)."""
+    if not sign:
+        return False
+    if ALIPAY_RSA_PUBLIC_KEY:
+        parts = [f"{k}={params[k]}" for k in sorted(params) if k not in ("sign", "sign_type") and params.get(k) not in (None, "")]
+        return rsa2_verify(ALIPAY_RSA_PUBLIC_KEY, "&".join(parts), sign)
+    if not secret:
         return False
     parts = []
     for k in sorted(params.keys()):
@@ -1009,6 +1050,9 @@ class H(http.server.BaseHTTPRequestHandler):
         except Exception:
             self._j({"error": "bad_json"}); return
         if p.path == "/api/register":
+            ip = self.client_address[0]
+            if _rate_blocked("reg:" + ip):
+                self._j({"error": "too_many"}); return
             email = (b.get("email") or "").strip().lower()
             pw = b.get("password") or ""
             name = clip(b.get("name", "同学"), "name")
@@ -1028,6 +1072,7 @@ class H(http.server.BaseHTTPRequestHandler):
             res = with_db(_reg)
             if res == "exists":
                 self._j({"error": "exists"}); return
+            _rate_hit("reg:" + ip)
             self._j({"uid": res, "name": name, "lang": lang, "sess": make_sess(res)}); return
         if p.path == "/api/login":
             ip = self.client_address[0]
@@ -1161,6 +1206,9 @@ class H(http.server.BaseHTTPRequestHandler):
         if p.path == "/api/buddy_add":
             uid = require_uid(b)
             if not uid: self._j({"error": "auth"}); return
+            ip = self.client_address[0]
+            if _rate_blocked("ugc:" + ip, 8, 300):
+                self._j({"error": "too_many"}); return
             c = db()
             c.execute("INSERT INTO buddies(user_id,name,school,city_id,arrive,wechat,note,status) VALUES(?,?,?,?,?,?,?,'pending')",
                       (uid, clip(b.get("name"), "name"), clip(b.get("school"), "school"),
@@ -1170,6 +1218,9 @@ class H(http.server.BaseHTTPRequestHandler):
         if p.path == "/api/post_add":
             uid = require_uid(b)
             if not uid: self._j({"error": "auth"}); return
+            ip = self.client_address[0]
+            if _rate_blocked("ugc:" + ip, 8, 300):
+                self._j({"error": "too_many"}); return
             c = db()
             c.execute("INSERT INTO posts(user_id,name,kind,city_id,title,body,contact,status) VALUES(?,?,?,?,?,?,?,'pending')",
                       (uid, clip(b.get("name"), "name"), (b.get("kind") or "info"), int(b.get("city_id") or 0),
