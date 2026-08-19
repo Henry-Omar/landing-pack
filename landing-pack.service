@@ -1,0 +1,25 @@
+[Unit]
+Description=Landing Pack (留学生落地包) — stdlib Python backend
+After=network.target
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/opt/landing-pack
+Environment=PORT=8000
+Environment=ADMIN_EMAIL=you@landingpackapp.com
+# Generate once and KEEP this stable (e.g. `openssl rand -hex 16`); if you lose it, re-issue via admin login.
+Environment=ADMIN_TOKEN=CHANGE_ME_16HEX
+# Signing secret for user sessions (e.g. `openssl rand -hex 32`). Set once, keep stable.
+Environment=LP_SECRET=CHANGE_ME_32HEX
+Environment=APP_BASE_URL=https://landingpackapp.com
+Environment=PAYMENTS_ENABLED=0
+Environment=DATA_DIR=/var/lib/landingpack
+ExecStart=/usr/bin/python3 /opt/landing-pack/server.py
+Restart=always
+RestartSec=3
+StandardOutput=append:/var/log/landingpack.out.log
+StandardError=append:/var/log/landingpack.err.log
+
+[Install]
+WantedBy=multi-user.target

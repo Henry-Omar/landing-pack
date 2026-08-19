@@ -47,6 +47,14 @@ ADMIN_EMAIL = os.environ.get("ADMIN_EMAIL", "admin@landing.pack")
 # client from forging admin access by sending a guessed uid (e.g. "u_admin").
 # In production set ADMIN_TOKEN via env (e.g. `openssl rand -hex 16`) so it persists across restarts.
 ADMIN_TOKEN = os.environ.get("ADMIN_TOKEN") or secrets.token_hex(16)
+# Signing secret for user session tokens (HMAC). Env-override in prod; if unset it is
+# random per boot (existing logins break on restart — acceptable for free-launch, set it for stability).
+SECRET = os.environ.get("LP_SECRET") or secrets.token_hex(32)
+def make_sess(uid):
+    return hmac.new(SECRET.encode(), uid.encode(), hashlib.sha256).hexdigest()[:32]
+def sess_ok(uid, tok):
+    if not uid or not tok: return False
+    return hmac.compare_digest(make_sess(uid), str(tok))
 
 DB = os.path.join(os.environ.get("DATA_DIR", os.path.dirname(__file__)), "landing.db")
 
@@ -607,6 +615,15 @@ def admin_ok(uid, token):
     """is_admin AND presents the server-issued ADMIN_TOKEN. Required for /api/admin/*."""
     return is_admin(uid) and token == ADMIN_TOKEN
 
+def require_uid(b):
+    """Return the verified uid, or None if the session signature is missing/invalid.
+    Closes the 'client forges another user's uid' weakness: writes must carry a
+    server-signed sess token."""
+    uid = b.get("uid")
+    if sess_ok(uid, b.get("sess")):
+        return uid
+    return None
+
 
 def init():
     c = db()
@@ -1011,7 +1028,7 @@ class H(http.server.BaseHTTPRequestHandler):
             res = with_db(_reg)
             if res == "exists":
                 self._j({"error": "exists"}); return
-            self._j({"uid": res, "name": name, "lang": lang}); return
+            self._j({"uid": res, "name": name, "lang": lang, "sess": make_sess(res)}); return
         if p.path == "/api/login":
             ip = self.client_address[0]
             if _login_blocked(ip):
@@ -1023,27 +1040,37 @@ class H(http.server.BaseHTTPRequestHandler):
                 _login_fail(ip)
                 self._j({"error": "bad"}); return
             _login_ok(ip)
-            resp = {"uid": u["id"], "name": u["name"], "lang": u["lang"], "is_pro": is_pro(u["id"])}
+            resp = {"uid": u["id"], "name": u["name"], "lang": u["lang"], "is_pro": is_pro(u["id"]), "sess": make_sess(u["id"])}
             if u["email"] == ADMIN_EMAIL:
                 resp["admin_token"] = ADMIN_TOKEN
             self._j(resp); return
         if p.path == "/api/profile":
-            uid = b.get("uid"); name = b.get("name", ""); lang = b.get("lang", "zh")
+            uid = require_uid(b)
+            if not uid: self._j({"error": "auth"}); return
+            name = b.get("name", ""); lang = b.get("lang", "zh")
             c = db(); c.execute("UPDATE users SET name=?, lang=? WHERE id=?", (name, lang, uid))
             if c.rowcount == 0:
                 c.execute("INSERT INTO users(id,name,lang) VALUES(?,?,?)", (uid, name, lang))
             c.commit(); c.close(); self._j({"ok": True}); return
         if p.path == "/api/check":
-            c = db(); c.execute("INSERT OR REPLACE INTO user_checks(user_id,task_id,done) VALUES(?,?,?)", (b["uid"], b["task_id"], b.get("done", 1))); c.commit(); c.close()
+            uid = require_uid(b)
+            if not uid: self._j({"error": "auth"}); return
+            c = db(); c.execute("INSERT OR REPLACE INTO user_checks(user_id,task_id,done) VALUES(?,?,?)", (uid, b["task_id"], b.get("done", 1))); c.commit(); c.close()
             self._j({"ok": True}); return
         if p.path == "/api/question":
-            c = db(); c.execute("INSERT INTO questions(user_id,name,lang,title,body) VALUES(?,?,?,?,?)", (b.get("uid"), clip(b.get("name", "匿名"), "name"), b.get("lang", "zh"), clip(b.get("title"), "title"), clip(b.get("body", ""), "text"))); c.commit(); c.close()
+            uid = require_uid(b)
+            if not uid: self._j({"error": "auth"}); return
+            c = db(); c.execute("INSERT INTO questions(user_id,name,lang,title,body) VALUES(?,?,?,?,?)", (uid, clip(b.get("name", "匿名"), "name"), b.get("lang", "zh"), clip(b.get("title"), "title"), clip(b.get("body", ""), "text"))); c.commit(); c.close()
             self._j({"ok": True}); return
         if p.path == "/api/answer":
+            uid = require_uid(b)
+            if not uid: self._j({"error": "auth"}); return
             c = db(); c.execute("INSERT INTO answers(q_id,name,lang,text) VALUES(?,?,?,?)", (b["q_id"], clip(b.get("name", "匿名"), "name"), b.get("lang", "zh"), clip(b.get("text", ""), "text"))); c.commit(); c.close()
             self._j({"ok": True}); return
         if p.path == "/api/product_click":
-            c = db(); c.execute("INSERT INTO clicks(product_id,user_id) VALUES(?,?)", (b.get("product_id"), b.get("uid"))); c.commit(); c.close()
+            uid = require_uid(b)
+            if not uid: self._j({"error": "auth"}); return
+            c = db(); c.execute("INSERT INTO clicks(product_id,user_id) VALUES(?,?)", (b.get("product_id"), uid)); c.commit(); c.close()
             self._j({"ok": True}); return
         if p.path == "/api/buy_kit":
             if not PAYMENTS_ENABLED:
@@ -1111,33 +1138,41 @@ class H(http.server.BaseHTTPRequestHandler):
                                 (uid, plan, "active", (datetime.now() + timedelta(days=(365 if plan == "pro_year" else 30))).strftime("%Y-%m-%d %H:%M:%S")))
             c.commit(); c.close(); self._j({"ok": True, "mock": True, "is_pro": True}); return
         if p.path == "/api/book":
-            c = db(); c.execute("INSERT INTO bookings(user_id,mentor_id,slot,topic,status) VALUES(?,?,?,?,?)", (b.get("uid"), b.get("mentor_id"), b.get("slot"), b.get("topic"), "pending")); c.commit(); c.close()
+            uid = require_uid(b)
+            if not uid: self._j({"error": "auth"}); return
+            c = db(); c.execute("INSERT INTO bookings(user_id,mentor_id,slot,topic,status) VALUES(?,?,?,?,?)", (uid, b.get("mentor_id"), b.get("slot"), b.get("topic"), "pending")); c.commit(); c.close()
             self._j({"ok": True}); return
         if p.path == "/api/set_school":
-            c = db(); c.execute("UPDATE users SET school_id=? WHERE id=?", (b.get("school_id"), b.get("uid"))); c.commit(); c.close()
+            uid = require_uid(b)
+            if not uid: self._j({"error": "auth"}); return
+            c = db(); c.execute("UPDATE users SET school_id=? WHERE id=?", (b.get("school_id"), uid)); c.commit(); c.close()
             self._j({"ok": True}); return
         if p.path == "/api/set_arrival":
-            c = db(); c.execute("UPDATE users SET arrival=? WHERE id=?", ((b.get("arrival") or "")[:20], b.get("uid"))); c.commit(); c.close()
+            uid = require_uid(b)
+            if not uid: self._j({"error": "auth"}); return
+            c = db(); c.execute("UPDATE users SET arrival=? WHERE id=?", ((b.get("arrival") or "")[:20], uid)); c.commit(); c.close()
             self._j({"ok": True}); return
         if p.path == "/api/school_check":
-            c = db(); c.execute("INSERT OR REPLACE INTO user_school_checks(user_id,school_task_id,done) VALUES(?,?,?)", (b.get("uid"), b.get("task_id"), b.get("done", 1))); c.commit(); c.close()
+            uid = require_uid(b)
+            if not uid: self._j({"error": "auth"}); return
+            c = db(); c.execute("INSERT OR REPLACE INTO user_school_checks(user_id,school_task_id,done) VALUES(?,?,?)", (uid, b.get("task_id"), b.get("done", 1))); c.commit(); c.close()
             self._j({"ok": True}); return
         # ---- Community submit (status='pending' until admin approves) ----
         if p.path == "/api/buddy_add":
-            if not b.get("uid"):
-                self._j({"error": "login"}); return
+            uid = require_uid(b)
+            if not uid: self._j({"error": "auth"}); return
             c = db()
             c.execute("INSERT INTO buddies(user_id,name,school,city_id,arrive,wechat,note,status) VALUES(?,?,?,?,?,?,?,'pending')",
-                      (b.get("uid"), clip(b.get("name"), "name"), clip(b.get("school"), "school"),
+                      (uid, clip(b.get("name"), "name"), clip(b.get("school"), "school"),
                        int(b.get("city_id") or 0), clip(b.get("arrive"), "note"), clip(b.get("wechat"), "wechat"), clip(b.get("note"), "note")))
             c.commit(); c.close()
             self._j({"ok": True, "pending": True}); return
         if p.path == "/api/post_add":
-            if not b.get("uid"):
-                self._j({"error": "login"}); return
+            uid = require_uid(b)
+            if not uid: self._j({"error": "auth"}); return
             c = db()
             c.execute("INSERT INTO posts(user_id,name,kind,city_id,title,body,contact,status) VALUES(?,?,?,?,?,?,?,'pending')",
-                      (b.get("uid"), clip(b.get("name"), "name"), (b.get("kind") or "info"), int(b.get("city_id") or 0),
+                      (uid, clip(b.get("name"), "name"), (b.get("kind") or "info"), int(b.get("city_id") or 0),
                        clip(b.get("title"), "title"), clip(b.get("body"), "body"), clip(b.get("contact"), "contact")))
             c.commit(); c.close()
             self._j({"ok": True, "pending": True}); return

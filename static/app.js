@@ -156,6 +156,8 @@ let lang = localStorage.getItem("lp_lang") || "zh";
 let authMode = "login";
 let curShopCat = "all";
 let mySchool = "";
+// Append the server-signed session to any write body (production: server rejects writes without a valid sess).
+function sb(o) { o.sess = localStorage.getItem("lp_sess") || ""; return o; }
 // ---- Offline mode: cache GET JSON in localStorage, fall back on network failure ----
 const LP_CACHE = "lp_cache_v1";
 function cacheGet(key) {
@@ -210,7 +212,7 @@ function applyLang() {
 function setLang(l) {
   lang = l;
   localStorage.setItem("lp_lang", l);
-  if (uid) fetch("/api/profile", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ uid, name: myName, lang: l }) });
+  if (uid) fetch("/api/profile", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(sb({ uid, name: myName, lang: l })) });
   applyLang();
 }
 $("#langZh").onclick = () => setLang("zh");
@@ -298,7 +300,7 @@ function renderCountdown() {
 }
 function saveArrival(date) {
   myArrival = date; localStorage.setItem("lp_arrival", date);
-  fetch("/api/set_arrival", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ uid, arrival: date }) });
+  fetch("/api/set_arrival", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(sb({ uid, arrival: date })) });
   renderCountdown();
 }
 function renderShareCard() {
@@ -383,7 +385,7 @@ function runOnboard() {
   }
   next.onclick = () => {
     if (stage === 1) { pickCity = $("#obCity").value; if (!pickCity) return; stage = 2; }
-    else if (stage === 2) { pickArrive = $("#obArrive").value; if (pickArrive) { myArrival = pickArrive; localStorage.setItem("lp_arrival", pickArrive); fetch("/api/set_arrival", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ uid, arrival: pickArrive }) }); } stage = 3; }
+    else if (stage === 2) { pickArrive = $("#obArrive").value; if (pickArrive) { myArrival = pickArrive; localStorage.setItem("lp_arrival", pickArrive); fetch("/api/set_arrival", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(sb({ uid, arrival: pickArrive })) }); } stage = 3; }
     else { localStorage.setItem("lp_onboarded", "1"); ob.classList.add("hidden"); renderCountdown(); return; }
     render();
   };
@@ -452,12 +454,13 @@ $("#authForm").onsubmit = async (e) => {
   if (r.error === "invalid") { msg.className = "msg err"; msg.textContent = lang === "zh" ? "请输入有效邮箱和密码" : "Enter a valid email and password"; return; }
   uid = r.uid; myName = r.name; lang = r.lang || "zh";
   localStorage.setItem("lp_uid", uid); localStorage.setItem("lp_name", myName); localStorage.setItem("lp_lang", lang);
+  if ("sess" in r) localStorage.setItem("lp_sess", r.sess); else localStorage.removeItem("lp_sess");
   if ("is_pro" in r) localStorage.setItem("lp_pro", r.is_pro ? "1" : "0");
   if ("admin_token" in r) localStorage.setItem("lp_admin", r.admin_token); else localStorage.removeItem("lp_admin");
   enterApp();
 };
 $("#logoutBtn").onclick = () => {
-  localStorage.removeItem("lp_uid"); localStorage.removeItem("lp_name"); localStorage.removeItem("lp_lang"); localStorage.removeItem("lp_pro");
+  localStorage.removeItem("lp_uid"); localStorage.removeItem("lp_name"); localStorage.removeItem("lp_lang"); localStorage.removeItem("lp_pro"); localStorage.removeItem("lp_sess");
   uid = ""; showHome();
 };
 
@@ -495,7 +498,7 @@ async function renderChecklist() {
   }
   $("#checkList").querySelectorAll("input").forEach((cb) => {
     cb.onchange = async () => {
-      await fetch("/api/check", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ uid, task_id: +cb.dataset.id, done: cb.checked ? 1 : 0 }) });
+      await fetch("/api/check", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(sb({ uid, task_id: +cb.dataset.id, done: cb.checked ? 1 : 0 })) });
       renderChecklist();
     };
   });
@@ -523,7 +526,7 @@ async function renderSchoolChecklist() {
   $("#schoolProgress").textContent = (lang === "zh" ? "已完成 " : "Done ") + done + "/" + tasks.length;
   $("#schoolCheckList").querySelectorAll("input").forEach((cb) => {
     cb.onchange = async () => {
-      await fetch("/api/school_check", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ uid, task_id: +cb.dataset.id, done: cb.checked ? 1 : 0 }) });
+      await fetch("/api/school_check", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(sb({ uid, task_id: +cb.dataset.id, done: cb.checked ? 1 : 0 })) });
       renderSchoolChecklist();
     };
   });
@@ -535,7 +538,7 @@ async function loadSchools() {
   sel.innerHTML = `<option value="">${I18N[lang].school_select_ph}</option>` + schools.map((s) => `<option value="${s.id}" ${String(s.id) === String(mySchool) ? "selected" : ""}>${esc(s["name_" + lang])} · ${esc(s.city_zh || s.city_en)}</option>`).join("");
   sel.onchange = async () => {
     mySchool = sel.value;
-    await fetch("/api/set_school", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ uid, school_id: mySchool }) });
+    await fetch("/api/set_school", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(sb({ uid, school_id: mySchool })) });
     renderSchoolChecklist();
   };
   renderSchoolChecklist();
@@ -578,7 +581,7 @@ async function renderQA() {
   list.querySelectorAll(".ansbox button").forEach((b) => {
     b.onclick = async () => {
       const id = b.dataset.id; const txt = $("#ain-" + id).value.trim(); if (!txt) return;
-      await fetch("/api/answer", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ q_id: +id, name: myName, lang, text: txt }) });
+      await fetch("/api/answer", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(sb({ q_id: +id, name: myName, lang, text: txt })) });
       renderQA();
     };
   });
@@ -588,7 +591,7 @@ $("#qaNew").onclick = () => $("#qaForm").classList.toggle("hidden");
 $("#qaFormSubmit").onclick = async () => {
   const title = $("#qaFormTitle").value.trim(); const body = $("#qaFormBody").value.trim();
   if (!title) return;
-  await fetch("/api/question", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ uid, name: myName, lang: $("#qaFormLang").value, title, body }) });
+  await fetch("/api/question", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(sb({ uid, name: myName, lang: $("#qaFormLang").value, title, body })) });
   $("#qaFormTitle").value = ""; $("#qaFormBody").value = ""; $("#qaForm").classList.add("hidden");
   renderQA();
 };
@@ -605,7 +608,7 @@ async function renderShop() {
   </div>`).join("");
   $("#shopList").querySelectorAll("button").forEach((b) => {
     b.onclick = async () => {
-      await fetch("/api/product_click", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ uid, product_id: +b.dataset.id }) });
+      await fetch("/api/product_click", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(sb({ uid, product_id: +b.dataset.id })) });
       window.open(b.dataset.url, "_blank");
     };
   });
@@ -692,7 +695,7 @@ function bookMentor(m) {
      <textarea id="bTopic" placeholder="${I18N[lang].mentor_topic_ph}" style="width:100%;min-height:60px;padding:10px;border-radius:10px;border:1px solid #dce3ea"></textarea>`,
     () => {
       const slot = $("#bSlot").value; const topic = $("#bTopic").value.trim();
-      fetch("/api/book", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ uid, mentor_id: m.id, slot, topic }) })
+      fetch("/api/book", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(sb({ uid, mentor_id: m.id, slot, topic })) })
         .then(() => { renderMentors(); });
     });
 }
@@ -944,7 +947,7 @@ function renderCommForm() {
       <input id="cbNote" class="fld" placeholder="${C.b_note}" style="width:100%;margin-bottom:8px">
       <button class="primary small" id="cbPub">${C.b_publish}</button>`;
     $("#cbPub").onclick = async () => {
-      const d = await (await fetch("/api/buddy_add", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ uid, name: $("#cbName").value, school: $("#cbSchool").value, arrive: $("#cbArrive").value, wechat: $("#cbWechat").value, note: $("#cbNote").value }) })).json();
+      const d = await (await fetch("/api/buddy_add", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(sb({ uid, name: $("#cbName").value, school: $("#cbSchool").value, arrive: $("#cbArrive").value, wechat: $("#cbWechat").value, note: $("#cbNote").value })) })).json();
       alert(d.pending ? C.pending : (d.error || "err"));
     };
   } else {
@@ -953,7 +956,7 @@ function renderCommForm() {
       <textarea id="cpBody" class="fld" placeholder="${C.p_body}" style="width:100%;height:64px;margin-bottom:8px"></textarea>
       <div class="plan-row"><input id="cpContact" class="fld" placeholder="${C.p_contact}"><button class="primary small" id="cpPub">${C.p_publish}</button></div>`;
     $("#cpPub").onclick = async () => {
-      const d = await (await fetch("/api/post_add", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ uid, kind, title: $("#cpTitle").value, body: $("#cpBody").value, contact: $("#cpContact").value }) })).json();
+      const d = await (await fetch("/api/post_add", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(sb({ uid, kind, title: $("#cpTitle").value, body: $("#cpBody").value, contact: $("#cpContact").value })) })).json();
       alert(d.pending ? C.pending : (d.error || "err"));
     };
   }
