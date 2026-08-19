@@ -12,6 +12,7 @@ import hmac
 import re
 import secrets
 import time
+import sys
 from datetime import datetime, timedelta
 from urllib.parse import urlparse, parse_qs
 
@@ -468,6 +469,7 @@ MAX = {"name": 40, "text": 2000, "body": 2000, "title": 120, "note": 300, "schoo
 def clip(v, key):
     if v is None: return ""
     return str(v)[: MAX.get(key, 500)]
+MAX_BODY = 64 * 1024  # 64KB POST cap — reject oversized payloads (DoA/DoS guard)
 
 
 
@@ -707,6 +709,8 @@ class H(http.server.BaseHTTPRequestHandler):
         self.send_header("X-Frame-Options", "DENY")
         self.send_header("Referrer-Policy", "no-referrer")
         super().end_headers()
+    def log_message(self, format, *args):
+        sys.stderr.write("[lp] " + (format % args) + "\n")
     def _j(self, obj):
         self.send_response(200)
         self.send_header("Content-Type", "application/json; charset=utf-8")
@@ -980,7 +984,13 @@ class H(http.server.BaseHTTPRequestHandler):
                 pass
             self.send_response(200); self.end_headers(); self.wfile.write(b"success"); return
         n = int(self.headers.get("Content-Length", 0))
-        b = json.loads(self.rfile.read(n) or b"{}")
+        if n > MAX_BODY:
+            self.send_response(413); self.send_header("Content-Type", "application/json"); self.end_headers()
+            self.wfile.write(json.dumps({"error": "payload_too_large"}).encode()); return
+        try:
+            b = json.loads(self.rfile.read(n) or b"{}")
+        except Exception:
+            self._j({"error": "bad_json"}); return
         if p.path == "/api/register":
             email = (b.get("email") or "").strip().lower()
             pw = b.get("password") or ""
