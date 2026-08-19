@@ -41,10 +41,11 @@ MENTOR_FEE_PCT = 20
 # Admin: only this account email can open the in-app admin console (/admin).
 # Override with env ADMIN_EMAIL on deploy.
 ADMIN_EMAIL = os.environ.get("ADMIN_EMAIL", "admin@landing.pack")
-# Server-side admin session token. Regenerated each boot; returned ONLY to the
+# Server-side admin session token. Stable per deploy (env-overridable), returned ONLY to the
 # admin account on login. All /api/admin/* calls must present it. This stops a
 # client from forging admin access by sending a guessed uid (e.g. "u_admin").
-ADMIN_TOKEN = secrets.token_hex(16)
+# In production set ADMIN_TOKEN via env (e.g. `openssl rand -hex 16`) so it persists across restarts.
+ADMIN_TOKEN = os.environ.get("ADMIN_TOKEN") or secrets.token_hex(16)
 
 DB = os.path.join(os.environ.get("DATA_DIR", os.path.dirname(__file__)), "landing.db")
 
@@ -442,6 +443,32 @@ def db():
     c.execute("PRAGMA busy_timeout=30000")
     c.execute("PRAGMA journal_mode=WAL")
     return c
+
+def with_db(fn, retries=5):
+    """Run a db-mutating callable with retry on 'database is locked'."""
+    last = None
+    for i in range(retries):
+        c = None
+        try:
+            c = db()
+            return fn(c)
+        except sqlite3.OperationalError as e:
+            last = e
+            if "locked" in str(e).lower():
+                time.sleep(0.1 * (i + 1))
+                continue
+            raise
+        finally:
+            if c:
+                try: c.close()
+                except Exception: pass
+    raise last or sqlite3.OperationalError("db write failed")
+
+MAX = {"name": 40, "text": 2000, "body": 2000, "title": 120, "note": 300, "school": 60, "wechat": 40, "contact": 120, "url": 500, "commission": 10}
+def clip(v, key):
+    if v is None: return ""
+    return str(v)[: MAX.get(key, 500)]
+
 
 
 def hash_pw(pw):
@@ -957,20 +984,24 @@ class H(http.server.BaseHTTPRequestHandler):
         if p.path == "/api/register":
             email = (b.get("email") or "").strip().lower()
             pw = b.get("password") or ""
-            name = (b.get("name") or "同学").strip()
+            name = clip(b.get("name", "同学"), "name")
             lang = b.get("lang", "zh")
             # Accept phone (CN mobile: +86 + 11 digits, or 11 digits) OR email (contains @)
             is_phone = bool(re.fullmatch(r"(\+?86)?1[3-9]\d{9}", email))
             is_email = "@" in email and "." in email.split("@")[-1]
             if (not (is_phone or is_email)) or len(pw) < 6:
                 self._j({"error": "invalid"}); return
-            c = db()
-            if c.execute("SELECT 1 FROM users WHERE email=?", (email,)).fetchone():
-                c.close(); self._j({"error": "exists"}); return
-            uid = "u" + secrets.token_hex(6)
-            c.execute("INSERT INTO users(id,email,password,name,lang) VALUES(?,?,?,?,?)", (uid, email, hash_pw(pw), name, lang))
-            c.commit(); c.close()
-            self._j({"uid": uid, "name": name, "lang": lang}); return
+            def _reg(c):
+                if c.execute("SELECT 1 FROM users WHERE email=?", (email,)).fetchone():
+                    return "exists"
+                uid = "u" + secrets.token_hex(6)
+                c.execute("INSERT INTO users(id,email,password,name,lang) VALUES(?,?,?,?,?)", (uid, email, hash_pw(pw), name, lang))
+                c.commit()
+                return uid
+            res = with_db(_reg)
+            if res == "exists":
+                self._j({"error": "exists"}); return
+            self._j({"uid": res, "name": name, "lang": lang}); return
         if p.path == "/api/login":
             ip = self.client_address[0]
             if _login_blocked(ip):
@@ -996,10 +1027,10 @@ class H(http.server.BaseHTTPRequestHandler):
             c = db(); c.execute("INSERT OR REPLACE INTO user_checks(user_id,task_id,done) VALUES(?,?,?)", (b["uid"], b["task_id"], b.get("done", 1))); c.commit(); c.close()
             self._j({"ok": True}); return
         if p.path == "/api/question":
-            c = db(); c.execute("INSERT INTO questions(user_id,name,lang,title,body) VALUES(?,?,?,?,?)", (b.get("uid"), b.get("name", "匿名"), b.get("lang", "zh"), b.get("title"), b.get("body", ""))); c.commit(); c.close()
+            c = db(); c.execute("INSERT INTO questions(user_id,name,lang,title,body) VALUES(?,?,?,?,?)", (b.get("uid"), clip(b.get("name", "匿名"), "name"), b.get("lang", "zh"), clip(b.get("title"), "title"), clip(b.get("body", ""), "text"))); c.commit(); c.close()
             self._j({"ok": True}); return
         if p.path == "/api/answer":
-            c = db(); c.execute("INSERT INTO answers(q_id,name,lang,text) VALUES(?,?,?,?)", (b["q_id"], b.get("name", "匿名"), b.get("lang", "zh"), b.get("text", ""))); c.commit(); c.close()
+            c = db(); c.execute("INSERT INTO answers(q_id,name,lang,text) VALUES(?,?,?,?)", (b["q_id"], clip(b.get("name", "匿名"), "name"), b.get("lang", "zh"), clip(b.get("text", ""), "text"))); c.commit(); c.close()
             self._j({"ok": True}); return
         if p.path == "/api/product_click":
             c = db(); c.execute("INSERT INTO clicks(product_id,user_id) VALUES(?,?)", (b.get("product_id"), b.get("uid"))); c.commit(); c.close()
@@ -1087,8 +1118,8 @@ class H(http.server.BaseHTTPRequestHandler):
                 self._j({"error": "login"}); return
             c = db()
             c.execute("INSERT INTO buddies(user_id,name,school,city_id,arrive,wechat,note,status) VALUES(?,?,?,?,?,?,?,'pending')",
-                      (b.get("uid"), (b.get("name") or "同学").strip(), (b.get("school") or "").strip(),
-                       int(b.get("city_id") or 0), (b.get("arrive") or "").strip(), (b.get("wechat") or "").strip(), (b.get("note") or "").strip()))
+                      (b.get("uid"), clip(b.get("name"), "name"), clip(b.get("school"), "school"),
+                       int(b.get("city_id") or 0), clip(b.get("arrive"), "note"), clip(b.get("wechat"), "wechat"), clip(b.get("note"), "note")))
             c.commit(); c.close()
             self._j({"ok": True, "pending": True}); return
         if p.path == "/api/post_add":
@@ -1096,8 +1127,8 @@ class H(http.server.BaseHTTPRequestHandler):
                 self._j({"error": "login"}); return
             c = db()
             c.execute("INSERT INTO posts(user_id,name,kind,city_id,title,body,contact,status) VALUES(?,?,?,?,?,?,?,'pending')",
-                      (b.get("uid"), (b.get("name") or "同学").strip(), (b.get("kind") or "info"), int(b.get("city_id") or 0),
-                       (b.get("title") or "").strip(), (b.get("body") or "").strip(), (b.get("contact") or "").strip()))
+                      (b.get("uid"), clip(b.get("name"), "name"), (b.get("kind") or "info"), int(b.get("city_id") or 0),
+                       clip(b.get("title"), "title"), clip(b.get("body"), "body"), clip(b.get("contact"), "contact")))
             c.commit(); c.close()
             self._j({"ok": True, "pending": True}); return
         # ---- Admin console POST (gated: only ADMIN_EMAIL) ----

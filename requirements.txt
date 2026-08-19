@@ -1,6 +1,3 @@
-# 留学生落地包 · Landing Pack
-# The app runs on the Python standard library only (http.server + sqlite3).
-# No dependencies are required for local/dev or the mock-payment path.
-#
-# To enable REAL Stripe payments, uncomment and install:
-# stripe>=7.0
+# Landing Pack backend is pure Python standard library — NO third-party deps.
+# Runtime: Python 3.8+ (tested on 3.11).
+# If you add packages later, list them here and run: pip install -r requirements.txt
