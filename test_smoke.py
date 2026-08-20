@@ -81,6 +81,31 @@ check("admin no-token rejected", s == 403, f"status={s}")
 s, b = call("/api/admin/check?uid=" + (uid or "") + "&admin_token=wrong")
 check("admin wrong-token rejected", s == 403, f"status={s}")
 
+# 9. subscription manage + account delete require a valid sess
+for ep in ("/api/sub/cancel", "/api/sub/reactivate", "/api/account/delete"):
+    s2, b2 = call(ep, "POST", {"uid": uid})
+    check(f"{ep} no-sess rejected", s2 == 403 or jget(b2, "error") == "auth", f"status={s2} body={b2[:60]}")
+# 10. seed an active subscription (test-only DB insert) so cancel/reactivate can be exercised
+import sqlite3 as _sq, os as _os, datetime as _dt
+_db = _os.path.join(_os.path.dirname(_os.path.abspath(__file__)), "landing.db")
+try:
+    _c = _sq.connect(_db); _c.execute("INSERT INTO subscribers(user_id,plan,status,expires_at) VALUES(?,?,?,?)",
+        (uid, "pro_month", "active", (_dt.datetime.now() + _dt.timedelta(days=30)).strftime("%Y-%m-%d %H:%M:%S"))); _c.commit(); _c.close()
+except Exception as ex:
+    check("seed subscription", False, "db insert failed: " + str(ex))
+# 11. positive: cancel -> me shows cancel_at_period_end; reactivate clears it
+s2, b2 = call("/api/sub/cancel", "POST", {"uid": uid, "sess": sess})
+check("sub/cancel valid ok", s2 == 200 and jget(b2, "error") is None, f"status={s2} body={b2[:60]}")
+s2, b2 = call(f"/api/me?uid={uid}&sess={sess}")
+check("me shows cancel_at_period_end after cancel", jget(b2, "cancel_at_period_end") is True, f"body={b2[:120]}")
+s2, b2 = call("/api/sub/reactivate", "POST", {"uid": uid, "sess": sess})
+check("sub/reactivate valid ok", s2 == 200 and jget(b2, "error") is None, f"status={s2}")
+s2, b2 = call(f"/api/me?uid={uid}&sess={sess}")
+check("me clears cancel_at_period_end after reactivate", jget(b2, "cancel_at_period_end") is False, f"body={b2[:120]}")
+# 12. account delete valid (erases the test user)
+s2, b2 = call("/api/account/delete", "POST", {"uid": uid, "sess": sess})
+check("account/delete valid ok", s2 == 200 and jget(b2, "ok") is True, f"status={s2} body={b2[:60]}")
+
 failed = [n for n, c, _ in results if not c]
 print("\n%d/%d passed" % (len(results) - len(failed), len(results)))
 sys.exit(1 if failed else 0)

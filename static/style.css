@@ -133,6 +133,12 @@ h2 { font-size: 19px; margin-bottom: 4px; color: #1f3a52; }
 .sub-plans { display: flex; gap: 10px; margin-top: 12px; }
 .sub-btn { flex: 1; padding: 14px; border: 1px solid #6a5cff; border-radius: 12px; background: #f5f3ff; color: #4326d6; font-size: 14px; cursor: pointer; }
 .sub-btn:hover { background: #ece8ff; }
+.sub-btn.ghost { flex: none; background: #fff; color: #6a5cff; }
+.sub-btn.danger { width: 100%; margin-top: 4px; background: #fff; color: #d6453b; border-color: #f0b4af; }
+.sub-btn.danger:hover { background: #fdeceb; }
+.sub-manage { display: flex; align-items: center; gap: 12px; margin-top: 12px; flex-wrap: wrap; }
+.sub-danger { margin-top: 16px; }
+.switch { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: #5a6b7b; cursor: pointer; }
 .note { background: linear-gradient(135deg,#eaf3ff,#f3ecff); border-left: 3px solid #2b5876; border-radius: 12px; padding: 12px 14px; font-size: 13px; line-height: 1.7; color: #33414e; margin-top: 10px; }
 /* --- Tools tab --- */
 .tools-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 12px; }

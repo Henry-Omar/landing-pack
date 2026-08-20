@@ -731,6 +731,18 @@ def init():
         c.execute("ALTER TABLE users ADD COLUMN arrival TEXT")
     except Exception:
         pass
+    try:
+        c.execute("ALTER TABLE subscribers ADD COLUMN auto_renew INTEGER DEFAULT 1")
+    except Exception:
+        pass
+    try:
+        c.execute("ALTER TABLE subscribers ADD COLUMN cancel_at_period_end INTEGER DEFAULT 0")
+    except Exception:
+        pass
+    try:
+        c.execute("ALTER TABLE subscribers ADD COLUMN canceled_at TEXT")
+    except Exception:
+        pass
     if c.execute("SELECT COUNT(*) FROM schools").fetchone()[0] == 0:
         c.executemany("INSERT INTO schools(name_en,name_zh,city_id,country_en,country_zh) VALUES(?,?,?,?,?)", SCHOOLS)
     if c.execute("SELECT COUNT(*) FROM school_tasks").fetchone()[0] == 0:
@@ -867,8 +879,8 @@ class H(http.server.BaseHTTPRequestHandler):
             c.close(); self._j([dict(r) for r in rows]); return
         if p.path == "/api/me":
             if not auid: self._j({"error": "auth"}); return
-            c = db(); row = c.execute("SELECT plan,status,expires_at FROM subscribers WHERE user_id=? AND status='active' ORDER BY id DESC LIMIT 1", (auid,)).fetchone(); c.close()
-            self._j({"uid": auid, "is_pro": is_pro(auid), "plan": row["plan"] if row else None, "expires_at": row["expires_at"] if row else None, "plans": PLANS}); return
+            c = db(); row = c.execute("SELECT plan,status,expires_at,auto_renew,cancel_at_period_end,created_at FROM subscribers WHERE user_id=? AND status='active' ORDER BY id DESC LIMIT 1", (auid,)).fetchone(); c.close()
+            self._j({"uid": auid, "is_pro": is_pro(auid), "plan": row["plan"] if row else None, "expires_at": row["expires_at"] if row else None, "auto_renew": bool(row["auto_renew"]) if row else False, "cancel_at_period_end": bool(row["cancel_at_period_end"]) if row else False, "created_at": row["created_at"] if row else None, "plans": PLANS}); return
         if p.path == "/api/kit_content":
             if not auid: self._j({"error": "auth"}); return
             kid = qs.get("kit_id", [""])[0]
@@ -1199,6 +1211,37 @@ class H(http.server.BaseHTTPRequestHandler):
             c = db(); c.execute("INSERT INTO subscribers(user_id,plan,status,expires_at) VALUES(?,?,?,?)",
                                 (uid, plan, "active", (datetime.now() + timedelta(days=(365 if plan == "pro_year" else 30))).strftime("%Y-%m-%d %H:%M:%S")))
             c.commit(); c.close(); self._j({"ok": True, "mock": True, "is_pro": True}); return
+        if p.path == "/api/sub/cancel":
+            uid = require_uid(b)
+            if not uid: self._j({"error": "auth"}); return
+            c = db()
+            row = c.execute("SELECT id FROM subscribers WHERE user_id=? AND status='active' ORDER BY id DESC LIMIT 1", (uid,)).fetchone()
+            if not row:
+                c.close(); self._j({"error": "no_sub"}); return
+            c.execute("UPDATE subscribers SET cancel_at_period_end=1 WHERE id=?", (row["id"],))
+            c.commit(); c.close(); self._j({"ok": True, "cancel_at_period_end": True}); return
+        if p.path == "/api/sub/reactivate":
+            uid = require_uid(b)
+            if not uid: self._j({"error": "auth"}); return
+            c = db()
+            row = c.execute("SELECT id FROM subscribers WHERE user_id=? AND status='active' ORDER BY id DESC LIMIT 1", (uid,)).fetchone()
+            if not row:
+                c.close(); self._j({"error": "no_sub"}); return
+            c.execute("UPDATE subscribers SET cancel_at_period_end=0 WHERE id=?", (row["id"],))
+            c.commit(); c.close(); self._j({"ok": True, "cancel_at_period_end": False}); return
+        if p.path == "/api/account/delete":
+            uid = require_uid(b)
+            if not uid: self._j({"error": "auth"}); return
+            c = db()
+            # PIPL / 个保法: erase the user's personal data across tables.
+            for t, col in (("user_checks", "user_id"), ("user_school_checks", "user_id"),
+                           ("bookings", "user_id"), ("subscribers", "user_id"),
+                           ("posts", "user_id"), ("buddies", "user_id"),
+                           ("answers", "q_id"), ("questions", "user_id")):
+                c.execute(f"DELETE FROM {t} WHERE {col}=?", (uid,))
+            c.execute("DELETE FROM users WHERE id=?", (uid,))
+            c.commit(); c.close()
+            self._j({"ok": True}); return
         if p.path == "/api/book":
             uid = require_uid(b)
             if not uid: self._j({"error": "auth"}); return

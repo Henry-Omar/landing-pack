@@ -33,7 +33,7 @@ const I18N = {
     mentor_title: "前辈预约", mentor_sub: "向同校学长学姐预约 1 对 1 咨询。",
     mentor_mine: "我的预约", mentor_book: "预约", mentor_cancel: "取消", mentor_confirm: "确认", mentor_topic_ph: "想咨询的问题", school_title: "你的学校专属清单", school_sub: "选择你的学校，查看该校同学独有的行前任务。", school_select_ph: "选择你的学校…", school_none: "选择学校后显示专属清单", dl_pack: "下载打包清单",
  admin_title: "管理后台", admin_sub: "仅管理员可见 · 合作管理 / 内容审核 / 数据总览", admin_partners: "合作方管理（用户不可见）", admin_partners_sub: "填入你的专属返佣链接，保存即生效，用户端不变。", admin_mod: "内容审核 · 问答", admin_community: "社区审核 · 找同伴/本地信息", admin_save: "保存", admin_del: "删除", admin_overview: "数据总览", tab_admin: "管理", tab_sub: "会员",
- sub_title: "会员订阅", sub_sub: "升级 PRO，解锁全部技能", sub_month: "月付 ¥29", sub_year: "年付 ¥199（省 72）", sub_upgrade: "升级 PRO", sub_current: "当前会员", sub_free: "免费用户", sub_pro_badge: "PRO", sub_perks: "PRO 专属：全部落地包免费、专属清单、前辈预约 9 折、问答优先、无广告", sub_cancel: "会员到期", sub_manage: "管理订阅",
+ sub_title: "会员订阅", sub_sub: "升级 PRO，解锁全部技能", sub_month: "月付 ¥29", sub_year: "年付 ¥199（省 72）", sub_upgrade: "升级 PRO", sub_current: "当前会员", sub_free: "免费用户", sub_pro_badge: "PRO", sub_perks: "PRO 专属：全部落地包免费、专属清单、前辈预约 9 折、问答优先、无广告", sub_cancel: "会员到期", sub_manage: "管理订阅", sub_renews: "下次续费", sub_expires: "将于以下日期取消", sub_auto_renew: "自动续费", sub_cancel_now: "取消订阅", sub_reactivate: "恢复订阅", sub_delete_account: "删除账户", sub_cancel_confirm: "确定取消订阅？到期后 PRO 权益停止，已购落地包仍可查看。", sub_delete_confirm: "确定永久删除账户？此操作不可恢复，将清除你的全部个人数据（符合个保法）。", sub_deleted: "账户已删除",
  pro_only: "PRO 专属", pro_unlock: "升级 PRO 解锁", coming_soon: "即将上线",
     tools_title: "实用工具", tools_sub: "落地生活小助手 · 免费",
     t_conv: "尺码/单位换算", t_conv_sub: "衣服尺码、温度、重量、距离一键换算",
@@ -68,7 +68,7 @@ const I18N = {
     mentor_title: "Mentor Booking", mentor_sub: "Book a 1:1 with a senior student at your school.",
     mentor_mine: "My Bookings", mentor_book: "Book", mentor_cancel: "Cancel", mentor_confirm: "Confirm", mentor_topic_ph: "What to ask", school_title: "Your school's checklist", school_sub: "Pick your school to see tasks unique to its students.", school_select_ph: "Select your school…", school_none: "Select a school to see its checklist", dl_pack: "Download packing list",
  admin_title: "Admin Console", admin_sub: "Admin only · partnerships / moderation / overview", admin_partners: "Partner management (hidden from users)", admin_partners_sub: "Paste your affiliate tracking links; saved instantly, user shop unchanged.", admin_mod: "Moderation · Q&A", admin_community: "Community moderation", admin_save: "Save", admin_del: "Delete", admin_overview: "Overview", tab_admin: "Admin", tab_sub: "Pro",
- sub_title: "Membership", sub_sub: "Upgrade to PRO, unlock all skills", sub_month: "Monthly ¥29", sub_year: "Yearly ¥199 (save 72)", sub_upgrade: "Upgrade to PRO", sub_current: "Current plan", sub_free: "Free user", sub_pro_badge: "PRO", sub_perks: "PRO perks: all Kits free, exclusive checklists, mentor booking 10% off, priority Q&A, no ads", sub_cancel: "Expires", sub_manage: "Manage",
+ sub_title: "Membership", sub_sub: "Upgrade to PRO, unlock all skills", sub_month: "Monthly ¥29", sub_year: "Yearly ¥199 (save 72)", sub_upgrade: "Upgrade to PRO", sub_current: "Current plan", sub_free: "Free user", sub_pro_badge: "PRO", sub_perks: "PRO perks: all Kits free, exclusive checklists, mentor booking 10% off, priority Q&A, no ads", sub_cancel: "Expires", sub_manage: "Manage", sub_renews: "Renews", sub_expires: "Cancels on", sub_auto_renew: "Auto-renew", sub_cancel_now: "Cancel subscription", sub_reactivate: "Reactivate", sub_delete_account: "Delete account", sub_cancel_confirm: "Cancel subscription? PRO stops at expiry; purchased Kits stay available.", sub_delete_confirm: "Permanently delete your account? This erases all your personal data (PIPL-compliant) and cannot be undone.", sub_deleted: "Account deleted",
  pro_only: "PRO only", pro_unlock: "Unlock with PRO", coming_soon: "Coming soon",
  tools_title: "Tools", tools_sub: "Everyday landing helpers · free",
  t_conv: "Size / Unit converter", t_conv_sub: "Clothes sizes, temp, weight, distance",
@@ -712,8 +712,15 @@ async function renderSub() {
   let html = `<div class="sub-card ${pro ? "is-pro" : ""}">
     <div class="sub-badge">${pro ? I18N[lang].sub_pro_badge : I18N[lang].sub_free}</div>`;
   if (pro) {
+    const cancelled = !!me.cancel_at_period_end;
     html += `<p>${I18N[lang].sub_current}: <b>${me.plan === "pro_year" ? I18N[lang].sub_year : I18N[lang].sub_month}</b></p>
-      <p class="muted">${I18N[lang].sub_cancel}: ${esc(me.expires_at || "-")}</p>`;
+      <p class="muted">${cancelled ? I18N[lang].sub_expires : I18N[lang].sub_renews}: ${esc(me.expires_at || "-")}</p>
+      <div class="sub-manage">
+        <label class="switch"><input type="checkbox" id="autoRenew" ${cancelled ? "" : "checked"}> ${I18N[lang].sub_auto_renew}</label>
+        ${cancelled
+          ? `<button class="sub-btn ghost" id="subReactivate">${I18N[lang].sub_reactivate}</button>`
+          : `<button class="sub-btn ghost" id="subCancel">${I18N[lang].sub_cancel_now}</button>`}
+      </div>`;
   } else {
     html += `<p class="muted">${I18N[lang].sub_perks}</p>
       <div class="sub-plans">
@@ -721,9 +728,18 @@ async function renderSub() {
         <button class="sub-btn" data-plan="pro_year"><b>${I18N[lang].sub_year}</b></button>` : `<button class="sub-btn" disabled style="opacity:.6;cursor:not-allowed"><b>${I18N[lang].coming_soon}</b></button>`}
       </div>`;
   }
-  html += `</div>`;
+  html += `</div>
+    <div class="sub-danger"><button class="sub-btn danger" id="delAccount">${I18N[lang].sub_delete_account}</button></div>`;
   $("#subBox").innerHTML = html;
-  $("#subBox").querySelectorAll(".sub-btn").forEach((b) => { b.onclick = () => subscribe(b.dataset.plan); });
+  $("#subBox").querySelectorAll(".sub-btn[data-plan]").forEach((b) => { b.onclick = () => subscribe(b.dataset.plan); });
+  const ar = document.getElementById("autoRenew");
+  if (ar) ar.onchange = () => { const p = "/api/sub/" + (ar.checked ? "reactivate" : "cancel"); fetch(p, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(sb({ uid })) }).then((x) => x.json()).then((r) => { if (!r.error) renderSub(); }); };
+  const sc = document.getElementById("subCancel");
+  if (sc) sc.onclick = async () => { if (!confirm(I18N[lang].sub_cancel_confirm)) return; const r = await fetch("/api/sub/cancel", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(sb({ uid })) }).then((x) => x.json()); if (!r.error) renderSub(); };
+  const sr = document.getElementById("subReactivate");
+  if (sr) sr.onclick = async () => { const r = await fetch("/api/sub/reactivate", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(sb({ uid })) }).then((x) => x.json()); if (!r.error) renderSub(); };
+  const da = document.getElementById("delAccount");
+  if (da) da.onclick = async () => { if (!confirm(I18N[lang].sub_delete_confirm)) return; const r = await fetch("/api/account/delete", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(sb({ uid })) }).then((x) => x.json()); if (r.ok) { localStorage.clear(); location.reload(); } };
 }
 // ---- Tools tab: free, pure-frontend helpers (no backend needed) ----
 const TOOL_DEFS = [
