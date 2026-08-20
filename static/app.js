@@ -24,7 +24,7 @@ const I18N = {
     guide_title: "城市生存指南", qa_title: "同校前辈问答",
     qa_all: "全部", qa_ask: "我要提问", qa_submit: "发布",
     tab_check: "清单", tab_guide: "指南", tab_qa: "问答",
-    tab_shop: "商城", tab_kit: "落地包", tab_mentor: "前辈",
+    tab_shop: "商城", tab_kit: "落地包", tab_mentor: "前辈", tab_tools: "工具", tab_plan: "计划", tab_comm: "社区",
     shop_title: "好物商城", shop_sub: "落地刚需好物，专属优惠链接，你买我们返佣（不加价）。",
     cat_all: "全部", cat_sim: "通讯", cat_insurance: "保险", cat_flight: "机票", cat_bank: "银行", cat_essentials: "生活好物",
     buy_aff: "前往购买",
@@ -59,7 +59,7 @@ const I18N = {
     guide_title: "City Survival Guide", qa_title: "Peer Q&A",
     qa_all: "All", qa_ask: "Ask", qa_submit: "Post",
     tab_check: "Check", tab_guide: "Guide", tab_qa: "Q&A",
-    tab_shop: "Shop", tab_kit: "Kits", tab_mentor: "Mentor",
+    tab_shop: "Shop", tab_kit: "Kits", tab_mentor: "Mentor", tab_tools: "Tools", tab_plan: "Plan", tab_comm: "Community",
     shop_title: "Essentials Shop", shop_sub: "Landing must-haves via our partner links — we earn a commission, no extra cost to you.",
     cat_all: "All", cat_sim: "Connectivity", cat_insurance: "Insurance", cat_flight: "Flights", cat_bank: "Banking", cat_essentials: "Essentials",
     buy_aff: "Shop now",
@@ -238,6 +238,9 @@ document.querySelectorAll(".tab").forEach((t) => {
     document.querySelectorAll(".view").forEach((x) => x.classList.remove("active"));
     t.classList.add("active");
     $("#view-" + t.dataset.view).classList.add("active");
+    if (t.dataset.view === "tools") renderTools();
+    else if (t.dataset.view === "plan") renderPlan();
+    else if (t.dataset.view === "comm") renderComm();
     applyLang();
   };
 });
