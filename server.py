@@ -665,6 +665,13 @@ def require_uid(b):
         return uid
     return None
 
+def require_uid_get(qs):
+    """GET variant: verify the signed sess from query params before returning private data."""
+    uid = qs.get("uid", [""])[0]
+    if sess_ok(uid, qs.get("sess", [""])[0]):
+        return uid
+    return None
+
 
 def init():
     c = db()
@@ -804,14 +811,17 @@ class H(http.server.BaseHTTPRequestHandler):
             return
         qs = parse_qs(p.query)
         uid = qs.get("uid", [""])[0]
+        auid = require_uid_get(qs)
         if p.path == "/api/profile":
-            c = db(); u = c.execute("SELECT name,lang,school_id,arrival FROM users WHERE id=?", (uid,)).fetchone(); c.close()
+            if not auid: self._j({"error": "auth"}); return
+            c = db(); u = c.execute("SELECT name,lang,school_id,arrival FROM users WHERE id=?", (auid,)).fetchone(); c.close()
             self._j({"name": u["name"] if u else None, "lang": u["lang"] if u else "zh", "school_id": u["school_id"] if u else None, "arrival": u["arrival"] if u else None}); return
         if p.path == "/api/checklist":
             c = db(); rows = c.execute("SELECT id,cat_en,cat_zh,task_en,task_zh FROM checklist ORDER BY id").fetchall(); c.close()
             self._j([dict(r) for r in rows]); return
         if p.path == "/api/checks":
-            c = db(); rows = c.execute("SELECT task_id,done FROM user_checks WHERE user_id=?", (uid,)).fetchall(); c.close()
+            if not auid: self._j({"error": "auth"}); return
+            c = db(); rows = c.execute("SELECT task_id,done FROM user_checks WHERE user_id=?", (auid,)).fetchall(); c.close()
             self._j({r["task_id"]: r["done"] for r in rows}); return
         if p.path == "/api/cities":
             c = db(); rows = c.execute("SELECT id,name_en,name_zh FROM cities ORDER BY id").fetchall(); c.close()
@@ -844,21 +854,24 @@ class H(http.server.BaseHTTPRequestHandler):
             c = db(); rows = c.execute("SELECT id,name_en,name_zh,desc_en,desc_zh,price FROM kits ORDER BY id").fetchall(); c.close()
             self._j([dict(r) for r in rows]); return
         if p.path == "/api/my_kits":
+            if not auid: self._j({"error": "auth"}); return
             c = db()
-            pro = is_pro(uid)
+            pro = is_pro(auid)
             if pro:
                 # Pro members own every kit
                 rows = c.execute("SELECT k.id,k.name_en,k.name_zh,k.desc_en,k.desc_zh,k.price,'paid' AS status FROM kits k").fetchall()
             else:
-                rows = c.execute("SELECT k.id,k.name_en,k.name_zh,k.desc_en,k.desc_zh,k.price,o.status FROM orders o JOIN kits k ON k.id=o.kit_id WHERE o.user_id=? AND o.status='paid'", (uid,)).fetchall()
+                rows = c.execute("SELECT k.id,k.name_en,k.name_zh,k.desc_en,k.desc_zh,k.price,o.status FROM orders o JOIN kits k ON k.id=o.kit_id WHERE o.user_id=? AND o.status='paid'", (auid,)).fetchall()
             c.close(); self._j([dict(r) for r in rows]); return
         if p.path == "/api/me":
-            c = db(); row = c.execute("SELECT plan,status,expires_at FROM subscribers WHERE user_id=? AND status='active' ORDER BY id DESC LIMIT 1", (uid,)).fetchone(); c.close()
-            self._j({"uid": uid, "is_pro": is_pro(uid), "plan": row["plan"] if row else None, "expires_at": row["expires_at"] if row else None, "plans": PLANS}); return
+            if not auid: self._j({"error": "auth"}); return
+            c = db(); row = c.execute("SELECT plan,status,expires_at FROM subscribers WHERE user_id=? AND status='active' ORDER BY id DESC LIMIT 1", (auid,)).fetchone(); c.close()
+            self._j({"uid": auid, "is_pro": is_pro(auid), "plan": row["plan"] if row else None, "expires_at": row["expires_at"] if row else None, "plans": PLANS}); return
         if p.path == "/api/kit_content":
+            if not auid: self._j({"error": "auth"}); return
             kid = qs.get("kit_id", [""])[0]
             c = db()
-            owned = c.execute("SELECT 1 FROM orders WHERE user_id=? AND kit_id=? AND status='paid'", (uid, kid)).fetchone()
+            owned = c.execute("SELECT 1 FROM orders WHERE user_id=? AND kit_id=? AND status='paid'", (auid, kid)).fetchone()
             if not owned:
                 c.close(); self._j({"error": "no_access"}); return
             r = c.execute("SELECT content_en,content_zh FROM kits WHERE id=?", (kid,)).fetchone(); c.close()
@@ -871,7 +884,8 @@ class H(http.server.BaseHTTPRequestHandler):
                 o["platform_fee"] = round(o["price"] * MENTOR_FEE_PCT / 100)
             self._j(out); return
         if p.path == "/api/my_bookings":
-            c = db(); rows = c.execute("SELECT b.id,m.name,m.school_en,m.school_zh,b.slot,b.topic,b.status FROM bookings b JOIN mentors m ON m.id=b.mentor_id WHERE b.user_id=?", (uid,)).fetchall(); c.close()
+            if not auid: self._j({"error": "auth"}); return
+            c = db(); rows = c.execute("SELECT b.id,m.name,m.school_en,m.school_zh,b.slot,b.topic,b.status FROM bookings b JOIN mentors m ON m.id=b.mentor_id WHERE b.user_id=?", (auid,)).fetchall(); c.close()
             self._j([dict(r) for r in rows]); return
         if p.path == "/api/schools":
             c = db(); rows = c.execute("SELECT s.id,s.name_en,s.name_zh,s.city_id,c.name_en AS city_en,c.name_zh AS city_zh,s.country_en,s.country_zh FROM schools s JOIN cities c ON c.id=s.city_id ORDER BY s.id").fetchall(); c.close()
@@ -881,8 +895,9 @@ class H(http.server.BaseHTTPRequestHandler):
             c = db(); rows = c.execute("SELECT id,school_id,cat_en,cat_zh,task_en,task_zh FROM school_tasks WHERE school_id=? ORDER BY id", (sid,)).fetchall(); c.close()
             self._j([dict(r) for r in rows]); return
         if p.path == "/api/school_checklist":
+            if not auid: self._j({"error": "auth"}); return
             sid = qs.get("school_id", [""])[0]
-            c = db(); rows = c.execute("SELECT school_task_id,done FROM user_school_checks WHERE user_id=?", (uid,)).fetchall(); c.close()
+            c = db(); rows = c.execute("SELECT school_task_id,done FROM user_school_checks WHERE user_id=?", (auid,)).fetchall(); c.close()
             self._j({str(r["school_task_id"]): r["done"] for r in rows}); return
         if p.path == "/api/school_note":
             sid = qs.get("school_id", [""])[0]

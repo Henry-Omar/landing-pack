@@ -158,6 +158,8 @@ let curShopCat = "all";
 let mySchool = "";
 // Append the server-signed session to any write body (production: server rejects writes without a valid sess).
 function sb(o) { o.sess = localStorage.getItem("lp_sess") || ""; return o; }
+// Append the server-signed session to a GET url (production: private reads require a valid sess).
+function gq(url) { return url + (url.indexOf("?") >= 0 ? "&" : "?") + "sess=" + encodeURIComponent(localStorage.getItem("lp_sess") || ""); }
 // ---- Offline mode: cache GET JSON in localStorage, fall back on network failure ----
 const LP_CACHE = "lp_cache_v1";
 function cacheGet(key) {
@@ -266,7 +268,7 @@ function enterApp() {
   applyLang();
   if (!localStorage.getItem("lp_onboarded")) runOnboard();
   // Load arrival date + render countdown hero
-  fetch("/api/profile?uid=" + uid).then((x) => x.json()).then((j) => {
+  fetch(gq("/api/profile?uid=" + uid)).then((x) => x.json()).then((j) => {
     if (j.arrival) { myArrival = j.arrival; }
     renderCountdown();
   }).catch(() => {});
@@ -467,7 +469,7 @@ $("#logoutBtn").onclick = () => {
 // ---- checklist ----
 async function renderChecklist() {
   const tasks = await apiCached("/api/checklist", "checklist");
-  const checks = await (await fetch("/api/checks?uid=" + uid)).json();
+  const checks = await (await fetch(gq("/api/checks?uid=" + uid))).json();
   const groups = {};
   tasks.forEach((t) => { (groups[t["cat_" + lang]] = groups[t["cat_" + lang]] || []).push(t); });
   let done = 0;
@@ -483,7 +485,7 @@ async function renderChecklist() {
   // Conversion nudge: engaged user (>=3 done) who hasn't bought a Kit -> suggest tripwire
   const nudge = $("#kitNudge");
   if (nudge && done >= 3 && uid) {
-    fetch("/api/my_kits?uid=" + uid).then((x) => x.json()).then((mine) => {
+    fetch(gq("/api/my_kits?uid=" + uid)).then((x) => x.json()).then((mine) => {
       if (!mine.length) {
         nudge.classList.remove("hidden");
         nudge.innerHTML = lang === "zh"
@@ -509,7 +511,7 @@ async function renderSchoolChecklist() {
   if (!mySchool) { $("#schoolCheckList").innerHTML = `<p class="muted">${I18N[lang].school_none}</p>`; $("#schoolProgress").textContent = ""; return; }
   const tasks = await (await fetch("/api/school_tasks?school_id=" + mySchool)).json();
   if (!tasks.length) { $("#schoolCheckList").innerHTML = `<p class="muted">${I18N[lang].school_none}</p>`; $("#schoolProgress").textContent = ""; return; }
-  const checks = await (await fetch("/api/school_checklist?uid=" + uid + "&school_id=" + mySchool)).json();
+  const checks = await (await fetch(gq("/api/school_checklist?uid=" + uid + "&school_id=" + mySchool))).json();
   const note = await (await fetch("/api/school_note?school_id=" + mySchool)).json();
   $("#schoolNote").innerHTML = note["note_" + lang] ? `<b>${lang === "zh" ? "到校贴士" : "Arrival tips"}</b><br>${esc(note["note_" + lang])}` : "";
   const groups = {};
@@ -623,7 +625,7 @@ async function renderKit() {
     <div class="row"><span class="kp">¥${k.price}</span>${PAYMENTS_ENABLED ? `<button class="btn-sm" data-id="${k.id}">${I18N[lang].kit_buy}</button>` : `<button class="btn-sm" disabled style="background:#e9edf1;color:#9aa7b2;cursor:not-allowed">${I18N[lang].coming_soon}</button>`}</div>
   </div>`).join("");
   $("#kitList").querySelectorAll("button[data-id]").forEach((b) => { if (PAYMENTS_ENABLED) b.onclick = () => buyKit(kits.find((x) => x.id == b.dataset.id)); });
-  const mine = await (await fetch("/api/my_kits?uid=" + uid)).json();
+  const mine = await (await fetch(gq("/api/my_kits?uid=" + uid))).json();
   $("#myKits").innerHTML = mine.length ? mine.map((k) => `<div class="k">
     <div class="kn">${esc(k["name_" + lang])}</div>
     <div class="kd">${esc(k["desc_" + lang])}</div>
@@ -647,7 +649,7 @@ function buyKit(k) {
     });
 }
 async function viewKit(id) {
-  const r = await (await fetch("/api/kit_content?kit_id=" + id + "&uid=" + uid)).json();
+  const r = await (await fetch(gq("/api/kit_content?kit_id=" + id + "&uid=" + uid))).json();
   if (r.error) return;
   let v = document.getElementById("kitViewer");
   if (!v) { v = document.createElement("div"); v.id = "kitViewer"; v.className = "kit-content"; $("#view-kit").appendChild(v); }
@@ -658,7 +660,7 @@ async function viewKit(id) {
   v.scrollIntoView({ behavior: "smooth" });
 }
 function downloadKit(id) {
-  fetch("/api/kit_content?kit_id=" + id + "&uid=" + uid).then((x) => x.json()).then((r) => {
+  fetch(gq("/api/kit_content?kit_id=" + id + "&uid=" + uid)).then((x) => x.json()).then((r) => {
     const txt = lang === "zh" ? r.content_zh : r.content_en;
     const blob = new Blob([txt], { type: "text/markdown" });
     const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = "landing-kit-" + id + ".md"; a.click();
@@ -681,7 +683,7 @@ async function renderMentors() {
   renderMyBookings();
 }
 async function renderMyBookings() {
-  const bs = await (await fetch("/api/my_bookings?uid=" + uid)).json();
+  const bs = await (await fetch(gq("/api/my_bookings?uid=" + uid))).json();
   $("#myBookings").innerHTML = bs.length ? bs.map((b) => `<div class="b">
     <div class="bn">${esc(b.name)} · ${esc(b["school_" + lang])}</div>
     <div class="bs">${esc(b.slot)} — ${esc(b.topic)}</div>
@@ -701,7 +703,7 @@ function bookMentor(m) {
 }
 async function renderSub() {
   if (!uid) { location.hash = "check"; return; }
-  const me = await (await fetch("/api/me?uid=" + uid)).json();
+  const me = await (await fetch(gq("/api/me?uid=" + uid))).json();
   const pro = me.is_pro;
   const plans = me.plans || { pro_month: { price: 29 }, pro_year: { price: 199 } };
   let html = `<div class="sub-card ${pro ? "is-pro" : ""}">
