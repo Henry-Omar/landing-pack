@@ -14,7 +14,8 @@
 <body>
   <header class="topbar">
     <div class="brand">
-      <div class="logo">留学生落地包</div>
+      <img id="brandLogo" src="" alt="" style="display:none;height:28px;border-radius:6px;margin-right:8px">
+      <div class="logo"><span id="brandName">留学生落地包</span></div>
       <div class="logo-en">Landing Pack</div>
     </div>
     <div class="top-right">
@@ -162,6 +163,12 @@
     <div id="adminCommunity" class="admin-qa"></div>
   </main>
 
+  <main id="view-vendor" class="view hidden">
+    <h2 data-i18n="vendor_title">商家后台</h2>
+    <p class="muted" data-i18n="vendor_sub">管理你的预约 / 商品与返佣</p>
+    <div id="vendorBox"></div>
+  </main>
+
   <main id="view-plan" class="view hidden">
     <h2 data-i18n="plan_title">我的计划</h2>
     <p class="muted" data-i18n="plan_sub">智能清单 + 落地前7天 + 我的收藏</p>
@@ -234,9 +241,10 @@
     <button class="tab" data-view="plan">🗓 <span data-i18n="tab_plan">计划</span></button>
     <button class="tab" data-view="comm">💬 <span data-i18n="tab_comm">社区</span></button>
     <button class="tab hidden" id="tabAdmin" data-view="admin">🛡 <span data-i18n="tab_admin">管理</span></button>
+    <button class="tab hidden" id="tabVendor" data-view="vendor">🤝 <span data-i18n="tab_vendor">商家</span></button>
   </nav>
 
-  <script src="/static/app.js?v=23"></script>
+  <script src="/static/app.js?v=24"></script>
 
   <!-- Onboarding modal (first login) -->
   <div id="onboard" class="modal hidden">

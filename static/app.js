@@ -33,7 +33,7 @@ const I18N = {
     mentor_title: "前辈预约", mentor_sub: "向同校学长学姐预约 1 对 1 咨询。",
     mentor_mine: "我的预约", mentor_book: "预约", mentor_cancel: "取消", mentor_confirm: "确认", mentor_topic_ph: "想咨询的问题", school_title: "你的学校专属清单", school_sub: "选择你的学校，查看该校同学独有的行前任务。", school_select_ph: "选择你的学校…", school_none: "选择学校后显示专属清单", dl_pack: "下载打包清单",
  admin_title: "管理后台", admin_sub: "仅管理员可见 · 合作管理 / 内容审核 / 数据总览", admin_partners: "合作方管理（用户不可见）", admin_partners_sub: "填入你的专属返佣链接，保存即生效，用户端不变。", admin_mod: "内容审核 · 问答", admin_community: "社区审核 · 找同伴/本地信息", admin_save: "保存", admin_del: "删除", admin_overview: "数据总览", tab_admin: "管理", tab_sub: "会员",
- sub_title: "会员订阅", sub_sub: "升级 PRO，解锁全部技能", sub_month: "月付 ¥29", sub_year: "年付 ¥199（省 72）", sub_upgrade: "升级 PRO", sub_current: "当前会员", sub_free: "免费用户", sub_pro_badge: "PRO", sub_perks: "PRO 专属：全部落地包免费、专属清单、前辈预约 9 折、问答优先、无广告", sub_cancel: "会员到期", sub_manage: "管理订阅", sub_renews: "下次续费", sub_expires: "将于以下日期取消", sub_auto_renew: "自动续费", sub_cancel_now: "取消订阅", sub_reactivate: "恢复订阅", sub_delete_account: "删除账户", sub_cancel_confirm: "确定取消订阅？到期后 PRO 权益停止，已购落地包仍可查看。", sub_delete_confirm: "确定永久删除账户？此操作不可恢复，将清除你的全部个人数据（符合个保法）。", sub_deleted: "账户已删除",
+ sub_title: "会员订阅", sub_sub: "升级 PRO，解锁全部技能", sub_month: "月付 ¥29", sub_year: "年付 ¥199（省 72）", sub_upgrade: "升级 PRO", sub_current: "当前会员", sub_free: "免费用户", sub_pro_badge: "PRO", sub_perks: "PRO 专属：全部落地包免费、专属清单、前辈预约 9 折、问答优先、无广告", sub_cancel: "会员到期", sub_manage: "管理订阅", sub_renews: "下次续费", sub_expires: "将于以下日期取消", sub_auto_renew: "自动续费", sub_cancel_now: "取消订阅", sub_reactivate: "恢复订阅", sub_delete_account: "删除账户", sub_cancel_confirm: "确定取消订阅？到期后 PRO 权益停止，已购落地包仍可查看。", sub_delete_confirm: "确定永久删除账户？此操作不可恢复，将清除你的全部个人数据（符合个保法）。", sub_deleted: "账户已删除", vendor_title: "商家后台", vendor_sub: "管理你的预约 / 商品与返佣", vendor_tab: "商家", vendor_bookings: "我的预约", vendor_confirm: "确认", vendor_cancel: "取消", vendor_products: "我的商品", vendor_add: "添加商品", vendor_clicks: "返佣点击", vendor_profile: "我的资料", vendor_no_bookings: "暂无预约", vendor_welcome: "欢迎，", vendor_save: "保存", vendor_name_en: "英文名", vendor_name_zh: "中文名", vendor_price: "价格(¥)", vendor_bio_en: "英文简介", vendor_bio_zh: "中文简介", vendor_expertise: "擅长",
  pro_only: "PRO 专属", pro_unlock: "升级 PRO 解锁", coming_soon: "即将上线",
     tools_title: "实用工具", tools_sub: "落地生活小助手 · 免费",
     t_conv: "尺码/单位换算", t_conv_sub: "衣服尺码、温度、重量、距离一键换算",
@@ -68,7 +68,7 @@ const I18N = {
     mentor_title: "Mentor Booking", mentor_sub: "Book a 1:1 with a senior student at your school.",
     mentor_mine: "My Bookings", mentor_book: "Book", mentor_cancel: "Cancel", mentor_confirm: "Confirm", mentor_topic_ph: "What to ask", school_title: "Your school's checklist", school_sub: "Pick your school to see tasks unique to its students.", school_select_ph: "Select your school…", school_none: "Select a school to see its checklist", dl_pack: "Download packing list",
  admin_title: "Admin Console", admin_sub: "Admin only · partnerships / moderation / overview", admin_partners: "Partner management (hidden from users)", admin_partners_sub: "Paste your affiliate tracking links; saved instantly, user shop unchanged.", admin_mod: "Moderation · Q&A", admin_community: "Community moderation", admin_save: "Save", admin_del: "Delete", admin_overview: "Overview", tab_admin: "Admin", tab_sub: "Pro",
- sub_title: "Membership", sub_sub: "Upgrade to PRO, unlock all skills", sub_month: "Monthly ¥29", sub_year: "Yearly ¥199 (save 72)", sub_upgrade: "Upgrade to PRO", sub_current: "Current plan", sub_free: "Free user", sub_pro_badge: "PRO", sub_perks: "PRO perks: all Kits free, exclusive checklists, mentor booking 10% off, priority Q&A, no ads", sub_cancel: "Expires", sub_manage: "Manage", sub_renews: "Renews", sub_expires: "Cancels on", sub_auto_renew: "Auto-renew", sub_cancel_now: "Cancel subscription", sub_reactivate: "Reactivate", sub_delete_account: "Delete account", sub_cancel_confirm: "Cancel subscription? PRO stops at expiry; purchased Kits stay available.", sub_delete_confirm: "Permanently delete your account? This erases all your personal data (PIPL-compliant) and cannot be undone.", sub_deleted: "Account deleted",
+ sub_title: "Membership", sub_sub: "Upgrade to PRO, unlock all skills", sub_month: "Monthly ¥29", sub_year: "Yearly ¥199 (save 72)", sub_upgrade: "Upgrade to PRO", sub_current: "Current plan", sub_free: "Free user", sub_pro_badge: "PRO", sub_perks: "PRO perks: all Kits free, exclusive checklists, mentor booking 10% off, priority Q&A, no ads", sub_cancel: "Expires", sub_manage: "Manage", sub_renews: "Renews", sub_expires: "Cancels on", sub_auto_renew: "Auto-renew", sub_cancel_now: "Cancel subscription", sub_reactivate: "Reactivate", sub_delete_account: "Delete account", sub_cancel_confirm: "Cancel subscription? PRO stops at expiry; purchased Kits stay available.", sub_delete_confirm: "Permanently delete your account? This erases all your personal data (PIPL-compliant) and cannot be undone.", sub_deleted: "Account deleted", vendor_title: "Vendor Console", vendor_sub: "Manage your bookings / products & commissions", vendor_tab: "Vendor", vendor_bookings: "My Bookings", vendor_confirm: "Confirm", vendor_cancel: "Cancel", vendor_products: "My Products", vendor_add: "Add Product", vendor_clicks: "Commission clicks", vendor_profile: "My Profile", vendor_no_bookings: "No bookings yet", vendor_welcome: "Welcome, ", vendor_save: "Save", vendor_name_en: "Name (EN)", vendor_name_zh: "Name (ZH)", vendor_price: "Price (¥)", vendor_bio_en: "Bio (EN)", vendor_bio_zh: "Bio (ZH)", vendor_expertise: "Expertise",
  pro_only: "PRO only", pro_unlock: "Unlock with PRO", coming_soon: "Coming soon",
  tools_title: "Tools", tools_sub: "Everyday landing helpers · free",
  t_conv: "Size / Unit converter", t_conv_sub: "Clothes sizes, temp, weight, distance",
@@ -211,6 +211,19 @@ function applyLang() {
   if ($("#view-comm").classList.contains("active")) renderComm();
   if ($("#view-admin").classList.contains("active") && !$("#tabAdmin").classList.contains("hidden")) renderAdmin();
 }
+async function applyOrgBranding() {
+  const slug = new URLSearchParams(location.search).get("org");
+  if (!slug) return;
+  const j = await (await fetch("/api/org/" + encodeURIComponent(slug))).json().catch(() => ({}));
+  if (j.error || !j.name) return;
+  document.getElementById("brandName") && (document.getElementById("brandName").textContent = j.name);
+  document.title = j.name;
+  if (j.logo_url) { const b = document.getElementById("brandLogo"); if (b) { b.src = j.logo_url; b.style.display = ""; } }
+  try {
+    const t = JSON.parse(j.theme || "{}");
+    if (t.primary) document.documentElement.style.setProperty("--brand", t.primary);
+  } catch (e) {}
+}
 function setLang(l) {
   lang = l;
   localStorage.setItem("lp_lang", l);
@@ -241,6 +254,7 @@ document.querySelectorAll(".tab").forEach((t) => {
     if (t.dataset.view === "tools") renderTools();
     else if (t.dataset.view === "plan") renderPlan();
     else if (t.dataset.view === "comm") renderComm();
+    else if (t.dataset.view === "vendor") renderVendor();
     applyLang();
   };
 });
@@ -280,6 +294,9 @@ function enterApp() {
   fetch("/api/admin/check?uid=" + uid + (at ? "&admin_token=" + encodeURIComponent(at) : "")).then((x) => x.json()).then((j) => {
     if (j.admin) { $("#tabAdmin").classList.remove("hidden"); } else { $("#tabAdmin").classList.add("hidden"); }
   }).catch(() => $("#tabAdmin").classList.add("hidden"));
+  // Reveal vendor tab only for vendor accounts (server enforces via vendor_token).
+  const vt = localStorage.getItem("lp_vtok");
+  if (vt) { $("#tabVendor").classList.remove("hidden"); } else { $("#tabVendor").classList.add("hidden"); }
   maybeShowPwaHint();
 }
 let myArrival = localStorage.getItem("lp_arrival") || "";
@@ -462,10 +479,13 @@ $("#authForm").onsubmit = async (e) => {
   if ("sess" in r) localStorage.setItem("lp_sess", r.sess); else localStorage.removeItem("lp_sess");
   if ("is_pro" in r) localStorage.setItem("lp_pro", r.is_pro ? "1" : "0");
   if ("admin_token" in r) localStorage.setItem("lp_admin", r.admin_token); else localStorage.removeItem("lp_admin");
+  if ("role" in r) localStorage.setItem("lp_role", r.role); else localStorage.removeItem("lp_role");
+  if ("vendor_token" in r) localStorage.setItem("lp_vtok", r.vendor_token); else localStorage.removeItem("lp_vtok");
   enterApp();
 };
 $("#logoutBtn").onclick = () => {
   localStorage.removeItem("lp_uid"); localStorage.removeItem("lp_name"); localStorage.removeItem("lp_lang"); localStorage.removeItem("lp_pro"); localStorage.removeItem("lp_sess");
+  localStorage.removeItem("lp_admin"); localStorage.removeItem("lp_role"); localStorage.removeItem("lp_vtok");
   uid = ""; showHome();
 };
 
@@ -740,6 +760,44 @@ async function renderSub() {
   if (sr) sr.onclick = async () => { const r = await fetch("/api/sub/reactivate", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(sb({ uid })) }).then((x) => x.json()); if (!r.error) renderSub(); };
   const da = document.getElementById("delAccount");
   if (da) da.onclick = async () => { if (!confirm(I18N[lang].sub_delete_confirm)) return; const r = await fetch("/api/account/delete", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(sb({ uid })) }).then((x) => x.json()); if (r.ok) { localStorage.clear(); location.reload(); } };
+}
+// ---- Vendor console (mentors + partners) ----
+function vq(path) { return path + (path.indexOf("?") >= 0 ? "&" : "?") + "uid=" + encodeURIComponent(uid) + "&vtok=" + encodeURIComponent(localStorage.getItem("lp_vtok") || ""); }
+async function renderVendor() {
+  const L = I18N[lang];
+  const me = await (await fetch(vq("/api/vendor/me"))).json();
+  if (me.error) { $("#vendorBox").innerHTML = `<p class="msg err">${esc(me.error)}</p>`; return; }
+  let html = `<p>${L.vendor_welcome}<b>${esc(localStorage.getItem("lp_name") || "")}</b> · ${me.role === "mentor" ? "🎓 " + L.tab_mentor : "🛒 " + L.tab_shop}</p>`;
+  if (me.role === "mentor") {
+    html += `<h3 class="sec">${L.vendor_bookings}</h3><div id="vBookings">`;
+    if (!me.bookings.length) html += `<p class="muted">${L.vendor_no_bookings}</p>`;
+    else html += me.bookings.map((b) => `<div class="b"><div class="bn">${esc(b.name)} · ${esc(b.school_en)}</div><div class="bs">${esc(b.slot)} — ${esc(b.topic)}</div><div class="row"><span class="tag">${esc(b.status)}</span>${b.status === "pending" ? `<button class="sub-btn ghost" data-confirm="${b.id}">${L.vendor_confirm}</button><button class="sub-btn danger" data-cancel="${b.id}">${L.vendor_cancel}</button>` : ""}</div></div>`).join("");
+    html += `</div><h3 class="sec">${L.vendor_profile}</h3><div id="vProfile">`;
+    const p = me.profile || {};
+    html += `<input class="fld" id="vBioEn" placeholder="${L.vendor_bio_en}" value="${esc(p.bio_en || "")}">
+      <input class="fld" id="vBioZh" placeholder="${L.vendor_bio_zh}" value="${esc(p.bio_zh || "")}">
+      <input class="fld" id="vExp" placeholder="${L.vendor_expertise}" value="${esc(p.expertise || "")}">
+      <input class="fld" id="vPrice" type="number" placeholder="${L.vendor_price}" value="${p.price || 99}">
+      <button class="sub-btn" id="vSaveProfile">${L.vendor_save}</button></div>`;
+  } else {
+    const prods = me.products || [];
+    html += `<h3 class="sec">${L.vendor_products}</h3><p class="muted">${L.vendor_clicks}: <b>${me.clicks || 0}</b></p><div id="vProducts">`;
+    html += prods.map((pr) => `<div class="b"><div class="bn">${esc(pr.name_en || pr.name_zh)}</div><div class="bs">¥${esc(pr.price)} · ${esc(pr.commission)} 返佣</div></div>`).join("") || `<p class="muted">—</p>`;
+    html += `</div><button class="sub-btn" id="vAddProduct">${L.vendor_add}</button>`;
+  }
+  $("#vendorBox").innerHTML = html;
+  if (me.role === "mentor") {
+    $("#vendorBox").querySelectorAll("[data-confirm]").forEach((b) => b.onclick = () => vPost("/api/vendor/booking/confirm", { id: +b.dataset.confirm }, renderVendor));
+    $("#vendorBox").querySelectorAll("[data-cancel]").forEach((b) => b.onclick = () => vPost("/api/vendor/booking/cancel", { id: +b.dataset.cancel }, renderVendor));
+    const sp = document.getElementById("vSaveProfile");
+    if (sp) sp.onclick = () => vPost("/api/vendor/profile", { bio_en: $("#vBioEn").value, bio_zh: $("#vBioZh").value, expertise: $("#vExp").value, price: +$("#vPrice").value || 99 }, renderVendor);
+  } else {
+    const ap = document.getElementById("vAddProduct");
+    if (ap) ap.onclick = () => { const name = prompt(L.vendor_name_en); if (!name) return; vPost("/api/vendor/product", { name_en: name, name_zh: name, desc_en: "", desc_zh: "", price: "0", commission: "0", url: "" }, renderVendor); };
+  }
+}
+function vPost(path, obj, after) {
+  fetch(path, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(sb(Object.assign({ uid }, obj, { vtok: localStorage.getItem("lp_vtok") || "" }))) }).then((x) => x.json()).then((r) => { if (!r.error) after(); }).catch(() => {});
 }
 // ---- Tools tab: free, pure-frontend helpers (no backend needed) ----
 const TOOL_DEFS = [
@@ -1070,6 +1128,8 @@ function modal(title, bodyHtml, onConfirm) {
 // ---- init ----
 (async () => {
   applyLang();
+  // White-label: apply org theme/branding if ?org=<slug> is present.
+  await applyOrgBranding();
   // Register service worker for PWA / offline install (ignore if unsupported).
   if ("serviceWorker" in navigator) {
     try { await navigator.serviceWorker.register("/static/sw.js"); } catch (e) {}

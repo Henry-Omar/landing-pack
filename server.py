@@ -56,6 +56,12 @@ def make_sess(uid):
 def sess_ok(uid, tok):
     if not uid or not tok: return False
     return hmac.compare_digest(make_sess(uid), str(tok))
+def make_vtok(uid):
+    # Vendor-scoped token (separate salt) so a user sess cannot impersonate a vendor.
+    return hmac.new((SECRET + ":vendor").encode(), uid.encode(), hashlib.sha256).hexdigest()[:32]
+def vtok_ok(uid, tok):
+    if not uid or not tok: return False
+    return hmac.compare_digest(make_vtok(uid), str(tok))
 
 DB = os.path.join(os.environ.get("DATA_DIR", os.path.dirname(__file__)), "landing.db")
 
@@ -674,7 +680,24 @@ def require_uid_get(qs):
         return uid
     return None
 
+def require_vendor(b):
+    """Verify a vendor-scoped token and that the account is a vendor. Returns uid or None."""
+    uid = b.get("uid")
+    c = db(); u = c.execute("SELECT role, vendor_id FROM users WHERE id=?", (uid,)).fetchone(); c.close()
+    if not u or u["role"] not in ("mentor", "partner"):
+        return None
+    if vtok_ok(uid, b.get("vtok")):
+        return uid
+    return None
 
+def require_vendor_get(qs):
+    uid = qs.get("uid", [""])[0]
+    c = db(); u = c.execute("SELECT role, vendor_id FROM users WHERE id=?", (uid,)).fetchone(); c.close()
+    if not u or u["role"] not in ("mentor", "partner"):
+        return None
+    if vtok_ok(uid, qs.get("vtok", [""])[0]):
+        return uid
+    return None
 def init():
     c = db()
     c.executescript("""
@@ -700,6 +723,7 @@ def init():
     CREATE TABLE IF NOT EXISTS buddies(id INTEGER PRIMARY KEY AUTOINCREMENT, user_id TEXT, name TEXT, school TEXT, city_id INTEGER, arrive TEXT, wechat TEXT, note TEXT, status TEXT DEFAULT 'pending', created_at TEXT DEFAULT (datetime('now')));
     CREATE TABLE IF NOT EXISTS posts(id INTEGER PRIMARY KEY AUTOINCREMENT, user_id TEXT, name TEXT, kind TEXT DEFAULT 'info', city_id INTEGER, title TEXT, body TEXT, contact TEXT, status TEXT DEFAULT 'pending', created_at TEXT DEFAULT (datetime('now')));
     CREATE TABLE IF NOT EXISTS senior_tips(id INTEGER PRIMARY KEY AUTOINCREMENT, city_id INTEGER, school TEXT, name TEXT, body_zh TEXT, body_en TEXT, status TEXT DEFAULT 'approved');
+    CREATE TABLE IF NOT EXISTS orgs(id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT, slug TEXT UNIQUE, theme TEXT DEFAULT '{}', logo_url TEXT, owner_user_id TEXT);
 
     """)
     if c.execute("SELECT COUNT(*) FROM checklist").fetchone()[0] == 0:
@@ -741,6 +765,22 @@ def init():
         pass
     try:
         c.execute("ALTER TABLE subscribers ADD COLUMN canceled_at TEXT")
+    except Exception:
+        pass
+    try:
+        c.execute("ALTER TABLE users ADD COLUMN role TEXT DEFAULT 'user'")
+    except Exception:
+        pass
+    try:
+        c.execute("ALTER TABLE users ADD COLUMN vendor_id INTEGER")
+    except Exception:
+        pass
+    try:
+        c.execute("ALTER TABLE users ADD COLUMN org_id INTEGER")
+    except Exception:
+        pass
+    try:
+        c.execute("ALTER TABLE products ADD COLUMN partner_id INTEGER")
     except Exception:
         pass
     if c.execute("SELECT COUNT(*) FROM schools").fetchone()[0] == 0:
@@ -993,6 +1033,37 @@ class H(http.server.BaseHTTPRequestHandler):
                 c.close()
                 self._j({"buddies": [dict(r) for r in bud], "posts": [dict(r) for r in pos]}); return
             self._j({"error": "unknown_admin"}); return
+        # ---- Vendor console (gated: vendor-scoped token) ----
+        if p.path.startswith("/api/vendor/"):
+            vid = require_vendor_get(qs)
+            if not vid: self._j({"error": "auth"}); return
+            c = db(); u = c.execute("SELECT role, vendor_id FROM users WHERE id=?", (vid,)).fetchone(); c.close()
+            if p.path == "/api/vendor/me":
+                c = db()
+                if u["role"] == "mentor":
+                    prof = c.execute("SELECT id,name,school_en,school_zh,bio_en,bio_zh,expertise,price FROM mentors WHERE id=?", (u["vendor_id"],)).fetchone()
+                    bookings = c.execute("SELECT b.id,m.name,m.school_en,b.slot,b.topic,b.status FROM bookings b JOIN mentors m ON m.id=b.mentor_id WHERE b.mentor_id=?", (u["vendor_id"],)).fetchall()
+                    c.close(); self._j({"role": "mentor", "profile": dict(prof) if prof else None, "bookings": [dict(r) for r in bookings]}); return
+                # partner
+                prods = c.execute("SELECT id,cat,name_en,name_zh,price,commission,url,partner_id FROM products WHERE partner_id=?", (u["vendor_id"],)).fetchall()
+                clicks = c.execute("SELECT COUNT(*) FROM clicks cl JOIN products p ON p.id=cl.product_id WHERE p.partner_id=?", (u["vendor_id"],)).fetchone()[0]
+                c.close(); self._j({"role": "partner", "products": [dict(r) for r in prods], "clicks": clicks}); return
+            if p.path == "/api/vendor/bookings":
+                c = db(); rows = c.execute("SELECT b.id,m.name,m.school_en,b.slot,b.topic,b.status, b.user_id FROM bookings b JOIN mentors m ON m.id=b.mentor_id WHERE b.mentor_id=?", (u["vendor_id"],)).fetchall(); c.close()
+                self._j([dict(r) for r in rows]); return
+            if p.path == "/api/vendor/products":
+                c = db(); rows = c.execute("SELECT id,cat,name_en,name_zh,desc_en,desc_zh,price,commission,url,partner_id FROM products WHERE partner_id=?", (u["vendor_id"],)).fetchall(); c.close()
+                self._j([dict(r) for r in rows]); return
+            if p.path == "/api/vendor/clicks":
+                c = db(); n = c.execute("SELECT COUNT(*) FROM clicks cl JOIN products p ON p.id=cl.product_id WHERE p.partner_id=?", (u["vendor_id"],)).fetchone()[0]; c.close()
+                self._j({"clicks": n}); return
+            self._j({"error": "unknown_vendor"}); return
+        # ---- White-label org branding (public, no auth) ----
+        if p.path.startswith("/api/org/"):
+            slug = p.path[len("/api/org/"):].split("?")[0]
+            c = db(); o = c.execute("SELECT name,slug,theme,logo_url FROM orgs WHERE slug=?", (slug,)).fetchone(); c.close()
+            if not o: self._j({"error": "no_org"}); return
+            self._j({"name": o["name"], "slug": o["slug"], "theme": o["theme"], "logo_url": o["logo_url"]}); return
         self._j({"error": "unknown"})
 
     def do_POST(self):
@@ -1109,14 +1180,16 @@ class H(http.server.BaseHTTPRequestHandler):
                 self._j({"error": "too_many"}); return
             email = (b.get("email") or "").strip().lower()
             pw = b.get("password") or ""
-            c = db(); u = c.execute("SELECT id,email,name,lang,password FROM users WHERE email=?", (email,)).fetchone(); c.close()
+            c = db(); u = c.execute("SELECT id,email,name,lang,password,role FROM users WHERE email=?", (email,)).fetchone(); c.close()
             if not u or not verify_pw(pw, u["password"]):
                 _login_fail(ip)
                 self._j({"error": "bad"}); return
             _login_ok(ip)
-            resp = {"uid": u["id"], "name": u["name"], "lang": u["lang"], "is_pro": is_pro(u["id"]), "sess": make_sess(u["id"])}
+            resp = {"uid": u["id"], "name": u["name"], "lang": u["lang"], "is_pro": is_pro(u["id"]), "sess": make_sess(u["id"]), "role": u["role"] if "role" in (u.keys()) else "user"}
             if u["email"] == ADMIN_EMAIL:
                 resp["admin_token"] = ADMIN_TOKEN
+            if u["role"] in ("mentor", "partner"):
+                resp["vendor_token"] = make_vtok(u["id"])
             self._j(resp); return
         if p.path == "/api/profile":
             uid = require_uid(b)
@@ -1242,6 +1315,30 @@ class H(http.server.BaseHTTPRequestHandler):
             c.execute("DELETE FROM users WHERE id=?", (uid,))
             c.commit(); c.close()
             self._j({"ok": True}); return
+        # ---- Vendor mutations (gated: vendor-scoped token) ----
+        if p.path.startswith("/api/vendor/"):
+            vid = require_vendor(b)
+            if not vid: self._j({"error": "auth"}); return
+            c = db(); u = c.execute("SELECT role, vendor_id FROM users WHERE id=?", (vid,)).fetchone(); c.close()
+            if p.path == "/api/vendor/booking/confirm":
+                c = db(); c.execute("UPDATE bookings SET status='confirmed' WHERE id=? AND mentor_id=?", (b.get("id"), u["vendor_id"])); c.commit(); c.close(); self._j({"ok": True}); return
+            if p.path == "/api/vendor/booking/cancel":
+                c = db(); c.execute("UPDATE bookings SET status='cancelled' WHERE id=? AND mentor_id=?", (b.get("id"), u["vendor_id"])); c.commit(); c.close(); self._j({"ok": True}); return
+            if p.path == "/api/vendor/profile" and u["role"] == "mentor":
+                c = db(); c.execute("UPDATE mentors SET bio_en=?, bio_zh=?, expertise=?, price=? WHERE id=?",
+                                     (clip(b.get("bio_en"), "text"), clip(b.get("bio_zh"), "text"), clip(b.get("expertise"), "text"), int(b.get("price", 99)), u["vendor_id"]))
+                c.commit(); c.close(); self._j({"ok": True}); return
+            if p.path == "/api/vendor/product" and u["role"] == "partner":
+                pid = b.get("id")
+                c = db()
+                if pid:
+                    c.execute("UPDATE products SET name_en=?, name_zh=?, desc_en=?, desc_zh=?, price=?, commission=?, url=? WHERE id=? AND partner_id=?",
+                              (b.get("name_en", ""), b.get("name_zh", ""), b.get("desc_en", ""), b.get("desc_zh", ""), b.get("price", ""), b.get("commission", ""), b.get("url", ""), pid, u["vendor_id"]))
+                else:
+                    c.execute("INSERT INTO products(cat,name_en,name_zh,desc_en,desc_zh,price,commission,url,partner_id) VALUES(?,?,?,?,?,?,?,?,?)",
+                              (b.get("cat", "essentials"), b.get("name_en", ""), b.get("name_zh", ""), b.get("desc_en", ""), b.get("desc_zh", ""), b.get("price", ""), b.get("commission", ""), b.get("url", ""), u["vendor_id"]))
+                c.commit(); c.close(); self._j({"ok": True}); return
+            self._j({"error": "forbidden"}); return
         if p.path == "/api/book":
             uid = require_uid(b)
             if not uid: self._j({"error": "auth"}); return
@@ -1311,6 +1408,50 @@ class H(http.server.BaseHTTPRequestHandler):
                 elif b.get("what") == "post":
                     c = db(); c.execute("UPDATE posts SET status=? WHERE id=?", (b.get("status"), b.get("id"))); c.commit(); c.close()
                 self._j({"ok": True}); return
+            if p.path == "/api/admin/vendor_create":
+                role = b.get("role")
+                if role not in ("mentor", "partner"):
+                    self._j({"error": "bad_role"}); return
+                email = (b.get("email") or "").strip().lower()
+                pw = b.get("password") or "vendor1234"
+                name = clip(b.get("name", "Vendor"), "name")
+                if not email or "@" not in email:
+                    self._j({"error": "bad_email"}); return
+                c = db()
+                if c.execute("SELECT 1 FROM users WHERE email=?", (email,)).fetchone():
+                    c.close(); self._j({"error": "exists"}); return
+                vid = None
+                if role == "mentor":
+                    c.execute("INSERT INTO mentors(name,school_en,school_zh,bio_en,bio_zh,expertise,price) VALUES(?,?,?,?,?,?,?)",
+                              (name, clip(b.get("school_en"), "school"), clip(b.get("school_zh"), "school"),
+                               clip(b.get("bio_en"), "text"), clip(b.get("bio_zh"), "text"), clip(b.get("expertise"), "text"), int(b.get("price", 99))))
+                    vid = c.execute("SELECT last_insert_rowid()").fetchone()[0]
+                # partner vendors manage products (no mentor row needed)
+                uid = "v_" + make_sess(email)[:12]
+                c.execute("INSERT INTO users(id,email,password,name,lang,role,vendor_id) VALUES(?,?,?,?,?,?,?)",
+                          (uid, email, hash_pw(pw), name, "zh", role, vid))
+                c.commit(); c.close()
+                self._j({"ok": True, "uid": uid, "email": email, "password": pw, "role": role, "vendor_id": vid,
+                         "vendor_token": make_vtok(uid)}); return
+            if p.path == "/api/admin/org_create":
+                name = clip(b.get("name", "Org"), "name")
+                slug = (b.get("slug") or name).lower().replace(" ", "-")
+                slug = "".join(ch for ch in slug if ch.isalnum() or ch == "-")[:40]
+                if not slug: self._j({"error": "bad_slug"}); return
+                c = db()
+                if c.execute("SELECT 1 FROM orgs WHERE slug=?", (slug,)).fetchone():
+                    c.close(); self._j({"error": "exists"}); return
+                theme = b.get("theme", "{}")
+                logo = b.get("logo_url", "") or ""
+                c.execute("INSERT INTO orgs(name,slug,theme,logo_url) VALUES(?,?,?,?)", (name, slug, theme, logo))
+                oid = c.execute("SELECT last_insert_rowid()").fetchone()[0]
+                # org admin sub-account
+                ouid = "o_" + make_sess(slug)[:12]
+                opw = b.get("password") or "org1234"
+                c.execute("INSERT INTO users(id,email,password,name,lang,role,org_id) VALUES(?,?,?,?,?,?,?)",
+                          (ouid, slug + "@landingpackapp.com", hash_pw(opw), name + " Admin", "zh", "org_admin", oid))
+                c.commit(); c.close()
+                self._j({"ok": True, "slug": slug, "org_admin_uid": ouid, "org_admin_password": opw}); return
         self._j({"error": "unknown"})
 
 

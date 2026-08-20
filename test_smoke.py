@@ -106,6 +106,54 @@ check("me clears cancel_at_period_end after reactivate", jget(b2, "cancel_at_per
 s2, b2 = call("/api/account/delete", "POST", {"uid": uid, "sess": sess})
 check("account/delete valid ok", s2 == 200 and jget(b2, "ok") is True, f"status={s2} body={b2[:60]}")
 
+# 13. VENDOR console (uses LP_SECRET=testsecret-0123456789 from the test server)
+import hmac as _hm, hashlib as _hl
+_VSEC = "testsecret-0123456789"
+def _vtok(u): return _hm.new((_VSEC + ":vendor").encode(), u.encode(), _hl.sha256).hexdigest()[:32]
+_vuid = "vtest_" + str(int(__import__("time").time()))
+try:
+    _c = _sq.connect(_db); _c.execute("INSERT INTO users(id,email,password,name,lang,role,vendor_id) VALUES(?,?,?,?,?,?,?)",
+        (_vuid, _vuid + "@qq.com", "x", "VTest", "zh", "mentor", 1)); _c.commit(); _c.close()
+except Exception as ex:
+    check("seed vendor", False, "db insert failed: " + str(ex))
+_vtok = _vtok(_vuid)
+# no vtok -> rejected
+s2, b2 = call(f"/api/vendor/me?uid={_vuid}")
+check("vendor/me no-vtok rejected", s2 == 403 or jget(b2, "error") == "auth", f"status={s2}")
+# wrong vtok -> rejected
+s2, b2 = call(f"/api/vendor/me?uid={_vuid}&vtok=deadbeef")
+check("vendor/me wrong-vtok rejected", s2 == 403 or jget(b2, "error") == "auth", f"status={s2}")
+# valid vtok -> ok and shows mentor role + bookings
+s2, b2 = call(f"/api/vendor/me?uid={_vuid}&vtok={_vtok}")
+check("vendor/me valid ok", s2 == 200 and jget(b2, "role") == "mentor", f"status={s2} body={b2[:120]}")
+# confirm booking requires valid vtok (use a seeded/inserted booking)
+_c = _sq.connect(_db); _c.execute("INSERT INTO bookings(user_id,mentor_id,slot,topic,status) VALUES(?,?,?,?,?)", (_vuid, 1, "2026-09-01", "visa", "pending")); _c.commit(); _bid = _c.execute("SELECT last_insert_rowid()").fetchone()[0]; _c.close()
+s2, b2 = call("/api/vendor/booking/confirm", "POST", {"uid": _vuid, "vtok": _vtok, "id": _bid})
+check("vendor booking confirm valid ok", s2 == 200 and jget(b2, "ok") is True, f"status={s2}")
+# non-vendor (normal user) hitting vendor endpoint -> rejected
+s2, b2 = call(f"/api/vendor/me?uid={uid}&vtok=whatever")
+check("vendor/me normal-user rejected", s2 == 403 or jget(b2, "error") == "auth", f"status={s2}")
+
+# 14. WHITE-LABEL org (multi-tenant shell)
+# admin login -> token
+s2, b2 = call("/api/login", "POST", {"email": "admin@landing.pack", "password": "admin1234"})
+_admin_tok = jget(b2, "admin_token")
+_admin_uid = jget(b2, "uid")
+check("admin login ok", s2 == 200 and bool(_admin_tok), f"status={s2}")
+# org_create without admin token -> 403
+s2, b2 = call("/api/admin/org_create", "POST", {"name": "Shanghai U"})
+check("org_create no-token rejected", s2 == 403 or jget(b2, "error") == "forbidden", f"status={s2}")
+# org_create with admin token -> ok + slug
+_slug = "shanghai-u-" + str(int(__import__("time").time()))
+s2, b2 = call("/api/admin/org_create", "POST", {"name": "Shanghai University", "slug": _slug, "admin_token": _admin_tok, "uid": _admin_uid})
+check("org_create valid ok", s2 == 200 and jget(b2, "ok") is True and jget(b2, "slug") == _slug, f"status={s2} body={b2[:120]}")
+# public branding endpoint
+s2, b2 = call(f"/api/org/{_slug}")
+check("org branding public ok", s2 == 200 and jget(b2, "name") == "Shanghai University", f"status={s2}")
+# unknown slug -> error
+s2, b2 = call("/api/org/does-not-exist-zzz")
+check("org branding unknown rejected", s2 == 200 and jget(b2, "error") == "no_org", f"status={s2}")
+
 failed = [n for n, c, _ in results if not c]
 print("\n%d/%d passed" % (len(results) - len(failed), len(results)))
 sys.exit(1 if failed else 0)
