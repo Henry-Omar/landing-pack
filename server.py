@@ -462,18 +462,20 @@ def db():
     c.execute("PRAGMA journal_mode=WAL")
     return c
 
-def with_db(fn, retries=5):
+def with_db(fn, retries=20):
     """Run a db-mutating callable with retry on 'database is locked'."""
     last = None
     for i in range(retries):
         c = None
         try:
             c = db()
-            return fn(c)
+            r = fn(c)
+            c.commit()
+            return r
         except sqlite3.OperationalError as e:
             last = e
             if "locked" in str(e).lower():
-                time.sleep(0.1 * (i + 1))
+                time.sleep(0.05 * (i + 1))
                 continue
             raise
         finally:
