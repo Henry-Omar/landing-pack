@@ -165,6 +165,12 @@
     <div id="adminQA" class="admin-qa"></div>
     <h3 class="sec" data-i18n="admin_community">社区审核 · 找同伴/本地信息</h3>
     <div id="adminCommunity" class="admin-qa"></div>
+    <h3 class="sec" data-i18n="admin_vendor_create">创建商家账号 (导师/合作方)</h3>
+    <p class="muted" data-i18n="admin_vendor_create_sub">生成商家后台账号并返回其 vendor_token，发给对方登录用。</p>
+    <div id="adminVendorCreate" class="admin-form"></div>
+    <h3 class="sec" data-i18n="admin_org_create">创建白标机构 (多租户壳)</h3>
+    <p class="muted" data-i18n="admin_org_create_sub">生成一个机构品牌壳 + 机构管理员子账号 (?org=&lt;slug&gt; 启用)。</p>
+    <div id="adminOrgCreate" class="admin-form"></div>
   </main>
 
   <main id="view-vendor" class="view hidden">
@@ -248,7 +254,7 @@
     <button class="tab hidden" id="tabVendor" data-view="vendor">🤝 <span data-i18n="tab_vendor">商家</span></button>
   </nav>
 
-  <script src="/static/app.js?v=25"></script>
+  <script src="/static/app.js?v=26"></script>
 
   <!-- Onboarding modal (first login) -->
   <div id="onboard" class="modal hidden">

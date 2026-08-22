@@ -32,7 +32,7 @@ const I18N = {
     kit_mine: "我的落地包", kit_buy: "购买", kit_owned: "已拥有 · 查看", kit_view: "查看", kit_download: "下载", kit_pay_hint: "模拟支付（部署时接入 Stripe / 微信支付）",
     mentor_title: "前辈预约", mentor_sub: "向同校学长学姐预约 1 对 1 咨询。",
     mentor_mine: "我的预约", mentor_book: "预约", mentor_cancel: "取消", mentor_confirm: "确认", mentor_topic_ph: "想咨询的问题", school_title: "你的学校专属清单", school_sub: "选择你的学校，查看该校同学独有的行前任务。", school_select_ph: "选择你的学校…", school_none: "选择学校后显示专属清单", dl_pack: "下载打包清单",
- admin_title: "管理后台", admin_sub: "仅管理员可见 · 合作管理 / 内容审核 / 数据总览", admin_partners: "合作方管理（用户不可见）", admin_partners_sub: "填入你的专属返佣链接，保存即生效，用户端不变。", admin_mod: "内容审核 · 问答", admin_community: "社区审核 · 找同伴/本地信息", admin_save: "保存", admin_del: "删除", admin_overview: "数据总览", tab_admin: "管理", tab_sub: "会员",
+ admin_title: "管理后台", admin_sub: "仅管理员可见 · 合作管理 / 内容审核 / 数据总览", admin_partners: "合作方管理（用户不可见）", admin_partners_sub: "填入你的专属返佣链接，保存即生效，用户端不变。", admin_mod: "内容审核 · 问答", admin_community: "社区审核 · 找同伴/本地信息", admin_save: "保存", admin_del: "删除", admin_overview: "数据总览", tab_admin: "管理", tab_sub: "会员", admin_vendor_create: "创建商家账号（导师/合作方）", admin_vendor_create_sub: "生成商家后台账号并返回其 vendor_token，发给对方登录用。", admin_org_create: "创建白标机构（多租户壳）", admin_org_create_sub: "生成一个机构品牌壳 + 机构管理员子账号（?org=<slug> 启用）。", admin_role: "角色", admin_mentor: "导师", admin_partner: "合作方", admin_email: "邮箱", admin_name: "名称", admin_slug: "机构缩写(slug)", admin_theme: "主题JSON(可选)", admin_create: "创建", admin_result: "结果",
  sub_title: "会员订阅", sub_sub: "升级 PRO，解锁全部技能", sub_month: "月付 ¥29", sub_year: "年付 ¥199（省 72）", sub_upgrade: "升级 PRO", sub_current: "当前会员", sub_free: "免费用户", sub_pro_badge: "PRO", sub_perks: "PRO 专属：全部落地包免费、专属清单、前辈预约 9 折、问答优先、无广告", sub_cancel: "会员到期", sub_manage: "管理订阅", sub_renews: "下次续费", sub_expires: "将于以下日期取消", sub_auto_renew: "自动续费", sub_cancel_now: "取消订阅", sub_reactivate: "恢复订阅", sub_delete_account: "删除账户", sub_cancel_confirm: "确定取消订阅？到期后 PRO 权益停止，已购落地包仍可查看。", sub_delete_confirm: "确定永久删除账户？此操作不可恢复，将清除你的全部个人数据（符合个保法）。", sub_deleted: "账户已删除", vendor_title: "商家后台", vendor_sub: "管理你的预约 / 商品与返佣", vendor_tab: "商家", vendor_bookings: "我的预约", vendor_confirm: "确认", vendor_cancel: "取消", vendor_products: "我的商品", vendor_add: "添加商品", vendor_clicks: "返佣点击", vendor_profile: "我的资料", vendor_no_bookings: "暂无预约", vendor_welcome: "欢迎，", vendor_save: "保存", vendor_name_en: "英文名", vendor_name_zh: "中文名", vendor_price: "价格(¥)", vendor_bio_en: "英文简介", vendor_bio_zh: "中文简介", vendor_expertise: "擅长",
  pro_only: "PRO 专属", pro_unlock: "升级 PRO 解锁", coming_soon: "即将上线",
     tools_title: "实用工具", tools_sub: "落地生活小助手 · 免费",
@@ -67,7 +67,7 @@ const I18N = {
     kit_mine: "My Kits", kit_buy: "Buy", kit_owned: "Owned · View", kit_view: "View", kit_download: "Download", kit_pay_hint: "Mock payment (wire Stripe / WeChat Pay on deploy)",
     mentor_title: "Mentor Booking", mentor_sub: "Book a 1:1 with a senior student at your school.",
     mentor_mine: "My Bookings", mentor_book: "Book", mentor_cancel: "Cancel", mentor_confirm: "Confirm", mentor_topic_ph: "What to ask", school_title: "Your school's checklist", school_sub: "Pick your school to see tasks unique to its students.", school_select_ph: "Select your school…", school_none: "Select a school to see its checklist", dl_pack: "Download packing list",
- admin_title: "Admin Console", admin_sub: "Admin only · partnerships / moderation / overview", admin_partners: "Partner management (hidden from users)", admin_partners_sub: "Paste your affiliate tracking links; saved instantly, user shop unchanged.", admin_mod: "Moderation · Q&A", admin_community: "Community moderation", admin_save: "Save", admin_del: "Delete", admin_overview: "Overview", tab_admin: "Admin", tab_sub: "Pro",
+ admin_title: "Admin Console", admin_sub: "Admin only · partnerships / moderation / overview", admin_partners: "Partner management (hidden from users)", admin_partners_sub: "Paste your affiliate tracking links; saved instantly, user shop unchanged.", admin_mod: "Moderation · Q&A", admin_community: "Community moderation", admin_save: "Save", admin_del: "Delete", admin_overview: "Overview", tab_admin: "Admin", tab_sub: "Pro", admin_vendor_create: "Create vendor account (mentor/partner)", admin_vendor_create_sub: "Creates a vendor console account and returns its vendor_token to share with them.", admin_org_create: "Create white-label org (tenant shell)", admin_org_create_sub: "Creates a branded org shell + an org-admin sub-account (?org=<slug> to enable).", admin_role: "Role", admin_mentor: "Mentor", admin_partner: "Partner", admin_email: "Email", admin_name: "Name", admin_slug: "Org slug", admin_theme: "Theme JSON (optional)", admin_create: "Create", admin_result: "Result",
  sub_title: "Membership", sub_sub: "Upgrade to PRO, unlock all skills", sub_month: "Monthly ¥29", sub_year: "Yearly ¥199 (save 72)", sub_upgrade: "Upgrade to PRO", sub_current: "Current plan", sub_free: "Free user", sub_pro_badge: "PRO", sub_perks: "PRO perks: all Kits free, exclusive checklists, mentor booking 10% off, priority Q&A, no ads", sub_cancel: "Expires", sub_manage: "Manage", sub_renews: "Renews", sub_expires: "Cancels on", sub_auto_renew: "Auto-renew", sub_cancel_now: "Cancel subscription", sub_reactivate: "Reactivate", sub_delete_account: "Delete account", sub_cancel_confirm: "Cancel subscription? PRO stops at expiry; purchased Kits stay available.", sub_delete_confirm: "Permanently delete your account? This erases all your personal data (PIPL-compliant) and cannot be undone.", sub_deleted: "Account deleted", vendor_title: "Vendor Console", vendor_sub: "Manage your bookings / products & commissions", vendor_tab: "Vendor", vendor_bookings: "My Bookings", vendor_confirm: "Confirm", vendor_cancel: "Cancel", vendor_products: "My Products", vendor_add: "Add Product", vendor_clicks: "Commission clicks", vendor_profile: "My Profile", vendor_no_bookings: "No bookings yet", vendor_welcome: "Welcome, ", vendor_save: "Save", vendor_name_en: "Name (EN)", vendor_name_zh: "Name (ZH)", vendor_price: "Price (¥)", vendor_bio_en: "Bio (EN)", vendor_bio_zh: "Bio (ZH)", vendor_expertise: "Expertise",
  pro_only: "PRO only", pro_unlock: "Unlock with PRO", coming_soon: "Coming soon",
  tools_title: "Tools", tools_sub: "Everyday landing helpers · free",
@@ -1109,6 +1109,33 @@ async function renderAdmin() {
     (cm.posts.length ? cm.posts.map((p) => `<div class="aq">[${esc(p.kind)}] ${esc(p.title)} · ${esc(p.name)} ${p.status !== "approved" ? modBtn("post", p.id, lang === "zh" ? "通过" : "Approve") + modBtn2("post", p.id, lang === "zh" ? "拒绝" : "Reject") : '<span class="apok">✓</span>'}</div>`).join("") : `<p class="muted">${lang === "zh" ? "暂无" : "None"}</p>`);
   const allMod = $("#adminCommunity").querySelectorAll(".apsave");
   allMod.forEach((b) => { b.onclick = async () => { await fetch("/api/admin/mod", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ uid, admin_token: at, what: b.dataset.w, id: +b.dataset.id, status: b.textContent.indexOf("通过") >= 0 || b.textContent.indexOf("Approve") >= 0 ? "approved" : "rejected" }) }); renderAdmin(); }; });
+  // ---- Vendor create ----
+  $("#adminVendorCreate").innerHTML = `
+    <div class="afrow"><label>${I18N[lang].admin_role}
+      <select id="vcRole"><option value="mentor">${I18N[lang].admin_mentor}</option><option value="partner">${I18N[lang].admin_partner}</option></select></label>
+      <label>${I18N[lang].admin_email}<input id="vcEmail" class="fld" placeholder="vendor@email.com"></label>
+      <label>${I18N[lang].admin_name}<input id="vcName" class="fld" placeholder="Name"></label></div>
+    <button class="btn-sm" id="vcBtn">${I18N[lang].admin_create}</button>
+    <pre id="vcOut" class="apout"></pre>`;
+  $("#vcBtn").onclick = async () => {
+    const body = { uid, admin_token: at, role: $("#vcRole").value, email: $("#vcEmail").value, name: $("#vcName").value };
+    const r = await (await fetch("/api/admin/vendor_create", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) })).json();
+    $("#vcOut").textContent = JSON.stringify(r, null, 2);
+    if (r.ok) renderAdmin();
+  };
+  // ---- Org create ----
+  $("#adminOrgCreate").innerHTML = `
+    <div class="afrow"><label>${I18N[lang].admin_name}<input id="ocName" class="fld" placeholder="Org name"></label>
+      <label>${I18N[lang].admin_slug}<input id="ocSlug" class="fld" placeholder="org-slug"></label></div>
+    <label>${I18N[lang].admin_theme}<input id="ocTheme" class="fld" placeholder='{"primary":"#16e0bd"}'></label>
+    <button class="btn-sm" id="ocBtn">${I18N[lang].admin_create}</button>
+    <pre id="ocOut" class="apout"></pre>`;
+  $("#ocBtn").onclick = async () => {
+    const body = { uid, admin_token: at, name: $("#ocName").value, slug: $("#ocSlug").value, theme: $("#ocTheme").value || "{}" };
+    const r = await (await fetch("/api/admin/org_create", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) })).json();
+    $("#ocOut").textContent = JSON.stringify(r, null, 2);
+    if (r.ok) renderAdmin();
+  };
 }
 function modBtn2(what, id, label) { return `<button class="btn-sm adelq" data-w="${what}" data-id="${id}">${label}</button>`; }
 async function delQA(answer_id, q_id) {
