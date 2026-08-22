@@ -1,0 +1,35 @@
+<svg viewBox="0 0 920 220" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Landing Pack — 落地包">
+  <defs>
+    <linearGradient id="tile2" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#131a2e"/>
+      <stop offset="0.55" stop-color="#1c2c4d"/>
+      <stop offset="1" stop-color="#2b5876"/>
+    </linearGradient>
+    <linearGradient id="accent2" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#4e92c4"/>
+      <stop offset="1" stop-color="#16e0bd"/>
+    </linearGradient>
+    <radialGradient id="glow2" cx="0.32" cy="0.26" r="0.7">
+      <stop offset="0" stop-color="#ffffff" stop-opacity="0.10"/>
+      <stop offset="1" stop-color="#ffffff" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+
+  <!-- icon -->
+  <rect x="10" y="10" width="200" height="200" rx="48" fill="url(#tile2)"/>
+  <rect x="10" y="10" width="200" height="200" rx="48" fill="url(#glow2)"/>
+  <g fill="url(#accent2)">
+    <circle cx="86" cy="138" r="6"/>
+    <circle cx="104" cy="158" r="4.6"/>
+    <circle cx="120" cy="176" r="3.4"/>
+    <circle cx="134" cy="192" r="2.4"/>
+  </g>
+  <g transform="translate(112 100) rotate(28) scale(4.2) translate(-12 -12)">
+    <path d="M2 12 L21 3 L14 12 L21 21 Z" fill="#ffffff"/>
+    <path d="M2 12 L21 12" stroke="url(#accent2)" stroke-width="1.1" stroke-linecap="round"/>
+  </g>
+
+  <!-- wordmark -->
+  <text x="238" y="118" font-family="-apple-system, 'PingFang SC', 'Microsoft YaHei', 'Segoe UI', sans-serif" font-size="62" font-weight="700" fill="#16233b">Landing Pack</text>
+  <text x="240" y="170" font-family="-apple-system, 'PingFang SC', 'Microsoft YaHei', 'Segoe UI', sans-serif" font-size="40" font-weight="600" fill="#2b5876" letter-spacing="6">落地包</text>
+</svg>

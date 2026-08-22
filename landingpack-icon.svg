@@ -1,0 +1,47 @@
+<svg viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Landing Pack icon">
+  <defs>
+    <linearGradient id="tile" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#131a2e"/>
+      <stop offset="0.55" stop-color="#1c2c4d"/>
+      <stop offset="1" stop-color="#2b5876"/>
+    </linearGradient>
+    <linearGradient id="accent" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#4e92c4"/>
+      <stop offset="1" stop-color="#16e0bd"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="0.32" cy="0.26" r="0.7">
+      <stop offset="0" stop-color="#ffffff" stop-opacity="0.10"/>
+      <stop offset="1" stop-color="#ffffff" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+
+  <rect x="32" y="32" width="960" height="960" rx="232" fill="url(#tile)"/>
+  <rect x="32" y="32" width="960" height="960" rx="232" fill="url(#glow)"/>
+  <rect x="58" y="58" width="908" height="908" rx="208" fill="none" stroke="#ffffff" stroke-opacity="0.06" stroke-width="3"/>
+
+  <!-- landing shadow -->
+  <ellipse cx="512" cy="716" rx="150" ry="26" fill="url(#accent)" opacity="0.35"/>
+
+  <!-- landing arrow (down) -->
+  <g fill="url(#accent)">
+    <rect x="492" y="250" width="40" height="120" rx="10"/>
+    <path d="M452 352 L512 420 L572 352 L540 320 L512 350 L484 320 Z"/>
+  </g>
+
+  <!-- open parcel / box (isometric) -->
+  <!-- left face -->
+  <path d="M408 470 L512 540 L512 700 L408 630 Z" fill="#dfe7f0"/>
+  <!-- right face -->
+  <path d="M616 470 L512 540 L512 700 L616 630 Z" fill="#ffffff"/>
+  <!-- top face -->
+  <path d="M512 400 L616 470 L512 540 L408 470 Z" fill="#f5f8fc"/>
+  <!-- accent edges -->
+  <g stroke="url(#accent)" stroke-width="8" fill="none" stroke-linejoin="round">
+    <path d="M408 470 L512 540 L616 470"/>
+    <path d="M512 540 L512 700"/>
+    <path d="M408 470 L408 630 L512 700"/>
+    <path d="M616 470 L616 630 L512 700"/>
+  </g>
+  <!-- open flap (lid) hint -->
+  <path d="M512 400 L408 470 M512 400 L616 470" stroke="url(#accent)" stroke-width="8" fill="none" stroke-linecap="round"/>
+</svg>

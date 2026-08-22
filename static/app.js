@@ -153,6 +153,7 @@ const esc = (s) => String(s == null ? "" : s).replace(/[&<>"]/g, (c) => ({ "&": 
 let uid = localStorage.getItem("lp_uid") || "";
 let myName = localStorage.getItem("lp_name") || "同学";
 let lang = localStorage.getItem("lp_lang") || "zh";
+let lp_mode = localStorage.getItem("lp_mode") || "cn";
 let authMode = "login";
 let curShopCat = "all";
 let mySchool = "";
@@ -575,8 +576,14 @@ $("#dlPack").onclick = () => {
 // ---- guide ----
 let curCity = null;
 async function renderCities() {
-  const cities = await apiCached("/api/cities", "cities");
-  if (!curCity && cities.length) curCity = cities[0].id;
+  const cities = await apiCached("/api/cities?mode=" + lp_mode, "cities_" + lp_mode);
+  if (!curCity || !cities.find((c) => c.id === curCity)) curCity = cities[0] ? cities[0].id : null;
+  // mode toggle
+  const mt = $("#modeToggle");
+  if (mt) mt.querySelectorAll(".mt").forEach((b) => {
+    b.classList.toggle("active", b.dataset.mode === lp_mode);
+    b.onclick = () => { lp_mode = b.dataset.mode; localStorage.setItem("lp_mode", lp_mode); curCity = null; renderCities(); };
+  });
   $("#cityTabs").innerHTML = cities.map((c) => `<div class="ct ${c.id === curCity ? "active" : ""}" data-id="${c.id}">${esc(c["name_" + lang])}</div>`).join("");
   $("#cityTabs").querySelectorAll(".ct").forEach((el) => { el.onclick = () => { curCity = +el.dataset.id; renderCities(); renderWiki(); }; });
   renderWiki();

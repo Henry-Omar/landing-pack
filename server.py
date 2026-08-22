@@ -103,12 +103,182 @@ CHECKLIST = [
     ("Enrollment", "报到", "Course registration", "完成选课注册"),
     ("Enrollment", "报到", "Health check & vaccines", "体检与疫苗"),
 ]
-CITIES = [("London", "伦敦"), ("New York", "纽约"), ("Sydney", "悉尼"), ("Toronto", "多伦多"), ("Tokyo", "东京")]
+CITIES = [("Shanghai", "上海", "cn"), ("Beijing", "北京", "cn"), ("Guangzhou", "广州", "cn"), ("Shenzhen", "深圳", "cn"), ("Hangzhou", "杭州", "cn"), ("Chengdu", "成都", "cn"), ("Wuhan", "武汉", "cn"), ("Nanjing", "南京", "cn"), ("Xi'an", "西安", "cn"), ("Suzhou", "苏州", "cn"), ("London", "伦敦", "abroad"), ("New York", "纽约", "abroad"), ("Sydney", "悉尼", "abroad"), ("Toronto", "多伦多", "abroad"), ("Tokyo", "东京", "abroad")]
 WIKI = {
+    "Shanghai": [
+        ("Housing", "住宿", "Dorms vs rental", "宿舍与租房",
+         "On-campus dorms are simplest; off-campus rentals need a residence permit (住宿登记) filed within 24h of moving in.",
+         "校内宿舍最省心；校外租房需在入住24小时内办理住宿登记。"),
+        ("Transport", "交通", "Metro + apps", "地铁与App",
+         "Shanghai Metro covers the city; use Alipay/WeChat '出行' to scan in. Get a Yikatong if you prefer a card.",
+         "上海地铁四通八达，用支付宝/微信'出行'扫码进站，也可办一卡通。"),
+        ("Bank", "银行", "Open an account", "开户",
+         "Bring passport + residence permit + admission letter; Bank of China / ICBC are intl-student friendly. A local card helps with rent & Alipay.",
+         "带护照、居留许可、录取通知书；中行/工行对外国学生友好，本地卡方便租房与绑定支付宝。"),
+        ("SIM", "手机卡", "Carriers", "手机卡",
+         "China Mobile / Unicom / Telecom all need real-name registration with passport. eSIM is limited; buy a physical SIM on arrival.",
+         "移动/联通/电信均需凭护照实名登记；eSIM受限，落地办实体卡最稳妥。"),
+        ("Medical", "医保", "Insurance + clinics", "医保与诊所",
+         "Universities offer basic insurance; bring the card to school clinics. For emergencies call 120.",
+         "学校提供基础医保，校医院凭卡就诊；急救拨120。"),
+    ],
+    "Beijing": [
+        ("Housing", "住宿", "Dorms vs rental", "宿舍与租房",
+         "Campus dorms are easiest; off-campus rentals require residence registration (住宿登记) within 24h at the local police station.",
+         "校内宿舍最省心；校外租房需24小时内到派出所办理住宿登记。"),
+        ("Transport", "交通", "Subway + bikes", "地铁与单车",
+         "Beijing Subway is huge; use Alipay/WeChat '出行' to scan in. Dockless bikes (美团/哈啰) cover short trips.",
+         "北京地铁网庞大，支付宝/微信'出行'扫码；美团/哈啰单车解决短途。"),
+        ("Bank", "银行", "Open an account", "开户",
+         "Bring passport + residence permit + admission letter; Bank of China / ICBC are intl-student friendly.",
+         "带护照、居留许可、录取通知书；中行/工行对外国学生友好。"),
+        ("SIM", "手机卡", "Carriers", "手机卡",
+         "Real-name registration with passport is required at Mobile/Unicom/Telecom. Buy a physical SIM on arrival.",
+         "移动/联通/电信均需护照实名；落地办实体卡。"),
+        ("Medical", "医保", "Insurance + clinics", "医保与诊所",
+         "Schools offer basic insurance; use the campus clinic with your card. Emergency: 120.",
+         "学校提供基础医保，校医院凭卡就诊；急救120。"),
+    ],
+    "Guangzhou": [
+        ("Housing", "住宿", "Dorms vs rental", "宿舍与租房",
+         "Campus dorms are simplest; off-campus rentals need residence registration within 24h at the local police station.",
+         "校内宿舍最省心；校外租房需24小时内办理住宿登记。"),
+        ("Transport", "交通", "Metro + buses", "地铁与公交",
+         "Guangzhou Metro reaches most campuses; use Alipay/WeChat '出行' to scan in. The APM and trams cover the CBD.",
+         "广州地铁通达多数校区，支付宝/微信'出行'扫码；APM与有轨电车覆盖市中心。"),
+        ("Bank", "银行", "Open an account", "开户",
+         "Bring passport + residence permit + admission letter; Bank of China / ICBC are intl-student friendly.",
+         "带护照、居留许可、录取通知书；中行/工行对外国学生友好。"),
+        ("SIM", "手机卡", "Carriers", "手机卡",
+         "Real-name registration with passport at Mobile/Unicom/Telecom. Buy a physical SIM on arrival.",
+         "移动/联通/电信均需护照实名；落地办实体卡。"),
+        ("Food", "饮食", "Cantonese eats", "粤式饮食",
+         "Cantonese food is light and fresh; try 肠粉/早茶. Late-night 大排档 are cheap and lively.",
+         "粤菜清淡鲜美，试试肠粉、早茶；夜市大排档便宜热闹。"),
+    ],
+    "Shenzhen": [
+        ("Housing", "住宿", "Dorms vs rental", "宿舍与租房",
+         "Campus dorms are simplest; off-campus rentals need residence registration within 24h at the local police station.",
+         "校内宿舍最省心；校外租房需24小时内办理住宿登记。"),
+        ("Transport", "交通", "Metro + buses", "地铁与公交",
+         "Shenzhen Metro is modern and expanding; use Alipay/WeChat '出行' to scan in. Cross-boundary to HK via 福田/罗湖.",
+         "深圳地铁现代且扩建中，支付宝/微信'出行'扫码；经福田/罗湖可直达香港。"),
+        ("Bank", "银行", "Open an account", "开户",
+         "Bring passport + residence permit + admission letter; Bank of China / ICBC are intl-student friendly.",
+         "带护照、居留许可、录取通知书；中行/工行对外国学生友好。"),
+        ("SIM", "手机卡", "Carriers", "手机卡",
+         "Real-name registration with passport at Mobile/Unicom/Telecom. Buy a physical SIM on arrival.",
+         "移动/联通/电信均需护照实名；落地办实体卡。"),
+        ("Tech", "科技", "Ecosystem", "科技生态",
+         "Shenzhen is China's hardware hub; 华强北 sells components, and maker spaces welcome students.",
+         "深圳是中国硬件之都，华强北可淘配件，创客空间对学生友好。"),
+    ],
+    "Hangzhou": [
+        ("Housing", "住宿", "Dorms vs rental", "宿舍与租房",
+         "Campus dorms are simplest; off-campus rentals need residence registration within 24h at the local police station.",
+         "校内宿舍最省心；校外租房需24小时内办理住宿登记。"),
+        ("Transport", "交通", "Metro + bikes", "地铁与单车",
+         "Hangzhou Metro is growing; Alipay/WeChat '出行' scans in. Scenic 西湖 is bike-friendly.",
+         "杭州地铁在扩建，支付宝/微信'出行'扫码；西湖边骑车很舒服。"),
+        ("Bank", "银行", "Open an account", "开户",
+         "Bring passport + residence permit + admission letter; Bank of China / ICBC are intl-student friendly.",
+         "带护照、居留许可、录取通知书；中行/工行对外国学生友好。"),
+        ("SIM", "手机卡", "Carriers", "手机卡",
+         "Real-name registration with passport at Mobile/Unicom/Telecom. Buy a physical SIM on arrival.",
+         "移动/联通/电信均需护照实名；落地办实体卡。"),
+        ("Life", "生活", "Tea & nature", "茶与自然",
+         "Hangzhou blends city and nature; 龙井 tea hills and 西溪 wetland are great weekend escapes.",
+         "杭州城景交融，龙井茶山与西溪湿地是周末好去处。"),
+    ],
+    "Chengdu": [
+        ("Housing", "住宿", "Dorms vs rental", "宿舍与租房",
+         "Campus dorms are simplest; off-campus rentals need residence registration within 24h at the local police station.",
+         "校内宿舍最省心；校外租房需24小时内办理住宿登记。"),
+        ("Transport", "交通", "Metro + buses", "地铁与公交",
+         "Chengdu Metro is extensive; use Alipay/WeChat '出行' to scan in. The 天府通 card also works.",
+         "成都地铁发达，支付宝/微信'出行'扫码；天府通卡通用。"),
+        ("Bank", "银行", "Open an account", "开户",
+         "Bring passport + residence permit + admission letter; Bank of China / ICBC are intl-student friendly.",
+         "带护照、居留许可、录取通知书；中行/工行对外国学生友好。"),
+        ("SIM", "手机卡", "Carriers", "手机卡",
+         "Real-name registration with passport at Mobile/Unicom/Telecom. Buy a physical SIM on arrival.",
+         "移动/联通/电信均需护照实名；落地办实体卡。"),
+        ("Food", "饮食", "Sichuan eats", "川味饮食",
+         "Chengdu is a UNESCO food city; try 火锅/串串 (mild 不辣 available). 茶馆 culture is relaxed.",
+         "成都是美食之都，试试火锅、串串（可选不辣）；茶馆文化悠闲。"),
+    ],
+    "Wuhan": [
+        ("Housing", "住宿", "Dorms vs rental", "宿舍与租房",
+         "Campus dorms are simplest; off-campus rentals need residence registration within 24h at the local police station.",
+         "校内宿舍最省心；校外租房需24小时内办理住宿登记。"),
+        ("Transport", "交通", "Metro + ferries", "地铁与轮渡",
+         "Wuhan Metro spans both banks of the Yangtze; use Alipay/WeChat '出行' to scan in. The river ferry is a local treat.",
+         "武汉地铁跨长江两岸，支付宝/微信'出行'扫码；轮渡别有风味。"),
+        ("Bank", "银行", "Open an account", "开户",
+         "Bring passport + residence permit + admission letter; Bank of China / ICBC are intl-student friendly.",
+         "带护照、居留许可、录取通知书；中行/工行对外国学生友好。"),
+        ("SIM", "手机卡", "Carriers", "手机卡",
+         "Real-name registration with passport at Mobile/Unicom/Telecom. Buy a physical SIM on arrival.",
+         "移动/联通/电信均需护照实名；落地办实体卡。"),
+        ("Life", "生活", "Lakes & campuses", "湖光与校园",
+         "Wuhan's 东湖 is huge and bike-friendly; many top universities cluster here.",
+         "武汉东湖广阔宜骑行，名校云集。"),
+    ],
+    "Nanjing": [
+        ("Housing", "住宿", "Dorms vs rental", "宿舍与租房",
+         "Campus dorms are simplest; off-campus rentals need residence registration within 24h at the local police station.",
+         "校内宿舍最省心；校外租房需24小时内办理住宿登记。"),
+        ("Transport", "交通", "Metro + buses", "地铁与公交",
+         "Nanjing Metro covers the city; use Alipay/WeChat '出行' to scan in. The 3号线 links many campuses.",
+         "南京地铁通达全城，支付宝/微信'出行'扫码；3号线串起多所大学。"),
+        ("Bank", "银行", "Open an account", "开户",
+         "Bring passport + residence permit + admission letter; Bank of China / ICBC are intl-student friendly.",
+         "带护照、居留许可、录取通知书；中行/工行对外国学生友好。"),
+        ("SIM", "手机卡", "Carriers", "手机卡",
+         "Real-name registration with passport at Mobile/Unicom/Telecom. Buy a physical SIM on arrival.",
+         "移动/联通/电信均需护照实名；落地办实体卡。"),
+        ("History", "人文", "Heritage", "历史人文",
+         "Nanjing blends history and student life; 中山陵/明城墙 are free or cheap to explore.",
+         "南京历史与校园交融，中山陵、明城墙多可免费或低价游玩。"),
+    ],
+    "Xi'an": [
+        ("Housing", "住宿", "Dorms vs rental", "宿舍与租房",
+         "Campus dorms are simplest; off-campus rentals need residence registration within 24h at the local police station.",
+         "校内宿舍最省心；校外租房需24小时内办理住宿登记。"),
+        ("Transport", "交通", "Metro + buses", "地铁与公交",
+         "Xi'an Metro is compact and growing; use Alipay/WeChat '出行' to scan in.",
+         "西安地铁紧凑且在扩建，支付宝/微信'出行'扫码。"),
+        ("Bank", "银行", "Open an account", "开户",
+         "Bring passport + residence permit + admission letter; Bank of China / ICBC are intl-student friendly.",
+         "带护照、居留许可、录取通知书；中行/工行对外国学生友好。"),
+        ("SIM", "手机卡", "Carriers", "手机卡",
+         "Real-name registration with passport at Mobile/Unicom/Telecom. Buy a physical SIM on arrival.",
+         "移动/联通/电信均需护照实名；落地办实体卡。"),
+        ("Food", "饮食", "Noodles & history", "面食与古都",
+         "Xi'an is famous for 肉夹馍/biangbiang面; the 回民街 night market is lively and cheap.",
+         "西安以肉夹馍、biangbiang面闻名；回民街夜市热闹实惠。"),
+    ],
+    "Suzhou": [
+        ("Housing", "住宿", "Dorms vs rental", "宿舍与租房",
+         "Campus dorms are simplest; off-campus rentals need residence registration within 24h at the local police station.",
+         "校内宿舍最省心；校外租房需24小时内办理住宿登记。"),
+        ("Transport", "交通", "Metro + trains", "地铁与高铁",
+         "Suzhou Metro is compact; high-speed rail to 上海 takes ~25 min—easy weekend trips.",
+         "苏州地铁紧凑；高铁到上海约25分钟，周末出行方便。"),
+        ("Bank", "银行", "Open an account", "开户",
+         "Bring passport + residence permit + admission letter; Bank of China / ICBC are intl-student friendly.",
+         "带护照、居留许可、录取通知书；中行/工行对外国学生友好。"),
+        ("SIM", "手机卡", "Carriers", "手机卡",
+         "Real-name registration with passport at Mobile/Unicom/Telecom. Buy a physical SIM on arrival.",
+         "移动/联通/电信均需护照实名；落地办实体卡。"),
+        ("Life", "生活", "Gardens & canals", "园林与水乡",
+         "Suzhou's classical gardens (拙政园) and nearby 周庄 water towns are peaceful escapes.",
+         "苏州园林（拙政园）与周庄水乡是静谧去处。"),
+    ],
     "London": [
         ("Housing", "住宿", "Hall vs private rental", "校内宿舍 vs 私人租房",
          "Uni halls are simple but pricey and competitive; private rents need a guarantor. Students are exempt from Council Tax with proof.",
-         "校内宿舍(过一个学年合同简单但贵且需早起申请)；私人租房注意 Council Tax 学生可免，但需提供学生证明。"),
+         "校内宿舍合同简单但贵且需早起申请；私人租房注意 Council Tax 学生可免，但需提供学生证明。"),
         ("Transport", "交通", "Oyster / contactless", "牡蛎卡/Oyster",
          "Use Oyster or contactless on the Tube; an 18+ Student Oyster gives 30% off with student status.",
          "伦敦地铁用 Oyster 或 contactless 银行卡，学生可办 18+ Student Oyster 享 30% 折扣。"),
@@ -704,7 +874,7 @@ def init():
     CREATE TABLE IF NOT EXISTS users(id TEXT PRIMARY KEY, email TEXT UNIQUE, password TEXT, name TEXT, lang TEXT DEFAULT 'zh');
     CREATE TABLE IF NOT EXISTS checklist(id INTEGER PRIMARY KEY AUTOINCREMENT, cat_en TEXT, cat_zh TEXT, task_en TEXT, task_zh TEXT);
     CREATE TABLE IF NOT EXISTS user_checks(user_id TEXT, task_id INTEGER, done INTEGER DEFAULT 0, PRIMARY KEY(user_id, task_id));
-    CREATE TABLE IF NOT EXISTS cities(id INTEGER PRIMARY KEY AUTOINCREMENT, name_en TEXT, name_zh TEXT);
+    CREATE TABLE IF NOT EXISTS cities(id INTEGER PRIMARY KEY AUTOINCREMENT, name_en TEXT, name_zh TEXT, mode TEXT DEFAULT 'cn');
     CREATE TABLE IF NOT EXISTS wiki(id INTEGER PRIMARY KEY AUTOINCREMENT, city_id INTEGER, cat_en TEXT, cat_zh TEXT, title_en TEXT, title_zh TEXT, body_en TEXT, body_zh TEXT);
     CREATE TABLE IF NOT EXISTS questions(id INTEGER PRIMARY KEY AUTOINCREMENT, user_id TEXT, name TEXT, lang TEXT, title TEXT, body TEXT, created_at TEXT DEFAULT (datetime('now')));
     CREATE TABLE IF NOT EXISTS answers(id INTEGER PRIMARY KEY AUTOINCREMENT, q_id INTEGER, name TEXT, lang TEXT, text TEXT, created_at TEXT DEFAULT (datetime('now')));
@@ -726,11 +896,23 @@ def init():
     CREATE TABLE IF NOT EXISTS orgs(id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT, slug TEXT UNIQUE, theme TEXT DEFAULT '{}', logo_url TEXT, owner_user_id TEXT);
 
     """)
+    # Migration: if an older DB has cities without the `mode` column (pre-mode-toggle
+    # build), rebuild cities+wiki so both cn (来华) and abroad (出国) guides load.
+    try:
+        cols = [r[1] for r in c.execute("PRAGMA table_info(cities)").fetchall()]
+        if "mode" not in cols:
+            c.execute("DROP TABLE IF EXISTS wiki")
+            c.execute("DROP TABLE IF EXISTS cities")
+            c.execute("CREATE TABLE cities(id INTEGER PRIMARY KEY AUTOINCREMENT, name_en TEXT, name_zh TEXT, mode TEXT DEFAULT 'cn')")
+            c.execute("CREATE TABLE wiki(id INTEGER PRIMARY KEY AUTOINCREMENT, city_id INTEGER, cat_en TEXT, cat_zh TEXT, title_en TEXT, title_zh TEXT, body_en TEXT, body_zh TEXT)")
+    except Exception:
+        pass
+
     if c.execute("SELECT COUNT(*) FROM checklist").fetchone()[0] == 0:
         c.executemany("INSERT INTO checklist(cat_en,cat_zh,task_en,task_zh) VALUES(?,?,?,?)", CHECKLIST)
     if c.execute("SELECT COUNT(*) FROM cities").fetchone()[0] == 0:
-        c.executemany("INSERT INTO cities(name_en,name_zh) VALUES(?,?)", CITIES)
-        for en, zh in CITIES:
+        c.executemany("INSERT INTO cities(name_en,name_zh,mode) VALUES(?,?,?)", CITIES)
+        for en, zh, mode in CITIES:
             cid = c.execute("SELECT id FROM cities WHERE name_en=?", (en,)).fetchone()[0]
             for cat_en, cat_zh, t_en, t_zh, b_en, b_zh in WIKI[en]:
                 c.execute("INSERT INTO wiki(city_id,cat_en,cat_zh,title_en,title_zh,body_en,body_zh) VALUES(?,?,?,?,?,?,?)",
@@ -797,16 +979,16 @@ def init():
         from datetime import timedelta
         base = datetime.now()
         seed_buddies = [
-            ("u_seed", "Yuki", "东京大学", 5, (base + timedelta(days=3)).strftime("%Y-%m-%d"), "yuki_jp", "一起找租房", "approved"),
-            ("u_seed", "Alex", "NYU", 2, (base + timedelta(days=5)).strftime("%Y-%m-%d"), "alex_ny", "找同校室友", "approved"),
-            ("u_seed", "李雷", "UCL", 1, (base + timedelta(days=2)).strftime("%Y-%m-%d"), "lilei_uk", "伦敦租房求拼", "approved"),
-            ("u_seed", "Mei", "USYD", 3, (base + timedelta(days=8)).strftime("%Y-%m-%d"), "mei_au", "悉尼二手群", "approved"),
-            ("u_seed", "张伟", "LSE", 1, (base + timedelta(days=-2)).strftime("%Y-%m-%d"), "zhang_uk", "已落地，求拼车", "approved"),
-            ("u_seed", "Tom", "UofT", 4, (base + timedelta(days=12)).strftime("%Y-%m-%d"), "tom_ca", "多伦多找房", "approved"),
-            ("u_seed", "王芳", "帝国理工", 1, (base + timedelta(days=6)).strftime("%Y-%m-%d"), "wang_uk", "IC 新生群", "approved"),
-            ("u_seed", "Ken", "早稻田大学", 5, (base + timedelta(days=15)).strftime("%Y-%m-%d"), "ken_jp", "日语练习搭子", "approved"),
-            ("u_seed", "Emma", "哥伦比亚大学", 2, (base + timedelta(days=4)).strftime("%Y-%m-%d"), "emma_ny", "NYC 租房", "approved"),
-            ("u_seed", "陈静", "新南威尔士大学", 3, (base + timedelta(days=20)).strftime("%Y-%m-%d"), "chen_au", "UNSW 接机", "approved"),
+            ("u_seed", "Yuki", "复旦大学", 1, (base + timedelta(days=3)).strftime("%Y-%m-%d"), "yuki_sh", "一起找租房"),
+            ("u_seed", "Alex", "清华大学", 2, (base + timedelta(days=5)).strftime("%Y-%m-%d"), "alex_bj", "找同校室友"),
+            ("u_seed", "李雷", "中山大学", 3, (base + timedelta(days=2)).strftime("%Y-%m-%d"), "lilei_gz", "广州租房求拼"),
+            ("u_seed", "Mei", "深圳大学", 4, (base + timedelta(days=8)).strftime("%Y-%m-%d"), "mei_sz", "深圳二手群"),
+            ("u_seed", "张伟", "浙江大学", 5, (base + timedelta(days=-2)).strftime("%Y-%m-%d"), "zhang_hz", "已落地，求拼车"),
+            ("u_seed", "Tom", "四川大学", 6, (base + timedelta(days=12)).strftime("%Y-%m-%d"), "tom_cd", "成都找房"),
+            ("u_seed", "王芳", "武汉大学", 7, (base + timedelta(days=6)).strftime("%Y-%m-%d"), "wang_wh", "武大新生群"),
+            ("u_seed", "Ken", "南京大学", 8, (base + timedelta(days=15)).strftime("%Y-%m-%d"), "ken_nj", "南京city walk搭子"),
+            ("u_seed", "Emma", "西安交大", 9, (base + timedelta(days=4)).strftime("%Y-%m-%d"), "emma_xa", "西安租房"),
+            ("u_seed", "陈静", "苏州大学", 10, (base + timedelta(days=20)).strftime("%Y-%m-%d"), "chen_sz", "苏大接机"),
         ]
         c.executemany("INSERT INTO buddies(user_id,name,school,city_id,arrive,wechat,note,status) VALUES(?,?,?,?,?,?,?,'approved')", seed_buddies)
     if not c.execute("SELECT 1 FROM users WHERE email=?", ("demo@landing.pack",)).fetchone():
@@ -878,7 +1060,13 @@ class H(http.server.BaseHTTPRequestHandler):
             c = db(); rows = c.execute("SELECT task_id,done FROM user_checks WHERE user_id=?", (auid,)).fetchall(); c.close()
             self._j({r["task_id"]: r["done"] for r in rows}); return
         if p.path == "/api/cities":
-            c = db(); rows = c.execute("SELECT id,name_en,name_zh FROM cities ORDER BY id").fetchall(); c.close()
+            mode = qs.get("mode", ["cn"])[0]
+            c = db()
+            if mode == "all":
+                rows = c.execute("SELECT id,name_en,name_zh,mode FROM cities ORDER BY mode, id").fetchall()
+            else:
+                rows = c.execute("SELECT id,name_en,name_zh,mode FROM cities WHERE mode=? ORDER BY id", (mode,)).fetchall()
+            c.close()
             self._j([dict(r) for r in rows]); return
         if p.path == "/api/wiki":
             cid = qs.get("city_id", [""])[0]

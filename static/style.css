@@ -71,6 +71,9 @@ h2 { font-size: 19px; margin-bottom: 4px; color: #1f3a52; }
 .city-tabs { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 10px; margin-bottom: 8px; }
 .city-tabs .ct { flex: none; padding: 8px 14px; background: #fff; border: 1px solid #dce3ea; border-radius: 20px; font-size: 13px; cursor: pointer; white-space: nowrap; }
 .city-tabs .ct.active { background: #2b5876; color: #fff; border-color: #2b5876; }
+.mode-toggle { display: flex; gap: 8px; margin-bottom: 12px; }
+.mode-toggle .mt { flex: 1; padding: 10px; background: #fff; border: 1px solid #dce3ea; border-radius: 12px; font-size: 13px; cursor: pointer; color: #44515f; }
+.mode-toggle .mt.active { background: linear-gradient(135deg, #2b5876, #16e0bd); color: #fff; border-color: #2b5876; font-weight: 600; }
 .wiki-list .w { background: #fff; border-radius: 12px; padding: 14px; margin-bottom: 10px; }
 .wiki-list .w .wc { display: inline-block; background: #e3edf5; color: #2b5876; font-size: 11px; padding: 2px 8px; border-radius: 8px; margin-bottom: 6px; }
 .wiki-list .w h3 { font-size: 15px; margin-bottom: 6px; }
