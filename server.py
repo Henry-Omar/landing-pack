@@ -868,6 +868,24 @@ def require_vendor_get(qs):
     if vtok_ok(uid, qs.get("vtok", [""])[0]):
         return uid
     return None
+
+def get_org_id(uid):
+    """Resolve the org a user belongs to (their tenant). NULL = platform/global."""
+    if not uid:
+        return None
+    c = db()
+    r = c.execute("SELECT org_id FROM users WHERE id=?", (uid,)).fetchone()
+    c.close()
+    return r["org_id"] if r else None
+
+def get_org_id_by_slug(slug):
+    if not slug:
+        return None
+    c = db()
+    r = c.execute("SELECT id FROM orgs WHERE slug=?", (slug,)).fetchone()
+    c.close()
+    return r["id"] if r else None
+
 def init():
     c = db()
     c.executescript("""
@@ -961,6 +979,11 @@ def init():
         c.execute("ALTER TABLE users ADD COLUMN org_id INTEGER")
     except Exception:
         pass
+    for _t in ("buddies", "posts", "questions", "answers"):
+        try:
+            c.execute(f"ALTER TABLE {_t} ADD COLUMN org_id INTEGER")
+        except Exception:
+            pass
     try:
         c.execute("ALTER TABLE products ADD COLUMN partner_id INTEGER")
     except Exception:
@@ -1048,6 +1071,7 @@ class H(http.server.BaseHTTPRequestHandler):
         qs = parse_qs(p.query)
         uid = qs.get("uid", [""])[0]
         auid = require_uid_get(qs)
+        cur_org = get_org_id(uid)  # tenant of the caller (None = platform/global)
         if p.path == "/api/profile":
             if not auid: self._j({"error": "auth"}); return
             c = db(); u = c.execute("SELECT name,lang,school_id,arrival FROM users WHERE id=?", (auid,)).fetchone(); c.close()
@@ -1075,10 +1099,14 @@ class H(http.server.BaseHTTPRequestHandler):
         if p.path == "/api/questions":
             lang = qs.get("lang", [""])[0]
             c = db()
+            # Tenant isolation: global (org_id NULL) is visible to everyone; an org user
+            # also sees their own org's posts. Other orgs' content is hidden.
+            org_clause = "AND (org_id IS NULL OR org_id=?)"
+            params = [cur_org] if cur_org else [None]
             if lang in ("en", "zh"):
-                rows = c.execute("SELECT id,name,lang,title,body,created_at FROM questions WHERE lang=? ORDER BY id DESC", (lang,)).fetchall()
+                rows = c.execute("SELECT id,name,lang,title,body,created_at FROM questions WHERE lang=?" + org_clause + " ORDER BY id DESC", [lang] + params).fetchall()
             else:
-                rows = c.execute("SELECT id,name,lang,title,body,created_at FROM questions ORDER BY id DESC").fetchall()
+                rows = c.execute("SELECT id,name,lang,title,body,created_at FROM questions WHERE 1=1" + org_clause + " ORDER BY id DESC", params).fetchall()
             c.close(); self._j([dict(r) for r in rows]); return
         if p.path == "/api/answers":
             qid = qs.get("q_id", [""])[0]
@@ -1153,6 +1181,8 @@ class H(http.server.BaseHTTPRequestHandler):
             params = []
             if cid:
                 q += " AND city_id=?"; params.append(cid)
+            if cur_org:
+                q += " AND (org_id IS NULL OR org_id=?)"; params.append(cur_org)
             q += " ORDER BY id DESC"
             rows = c.execute(q, params).fetchall(); c.close()
             self._j([dict(r) for r in rows]); return
@@ -1166,6 +1196,8 @@ class H(http.server.BaseHTTPRequestHandler):
                 q += " AND city_id=?"; params.append(cid)
             if kind:
                 q += " AND kind=?"; params.append(kind)
+            if cur_org:
+                q += " AND (org_id IS NULL OR org_id=?)"; params.append(cur_org)
             q += " ORDER BY id DESC"
             rows = c.execute(q, params).fetchall(); c.close()
             self._j([dict(r) for r in rows]); return
@@ -1206,18 +1238,31 @@ class H(http.server.BaseHTTPRequestHandler):
                 c = db(); rows = c.execute("SELECT id,cat,name_en,name_zh,price,commission,url,(SELECT COUNT(*) FROM clicks cl WHERE cl.product_id=products.id) AS clicks FROM products ORDER BY cat,id").fetchall(); c.close()
                 self._j([dict(r) for r in rows]); return
             if p.path == "/api/admin/qa":
+                aorg = qs.get("org", [""])[0]
                 c = db()
-                qs = c.execute("SELECT id,user_id,name,lang,title,body,created_at FROM questions ORDER BY id DESC").fetchall()
+                qsql = "SELECT id,user_id,name,lang,title,body,created_at FROM questions"
+                qparams = []
+                if aorg:
+                    qsql += " WHERE org_id=?"; qparams.append(aorg)
+                qsql += " ORDER BY id DESC"
+                rows = c.execute(qsql, qparams).fetchall()
                 out = []
-                for q in qs:
-                    ans = c.execute("SELECT id,name,lang,text FROM answers WHERE q_id=?", (q["id"],)).fetchall()
-                    d = dict(q); d["answers"] = [dict(a) for a in ans]; out.append(d)
+                for qq in rows:
+                    ans = c.execute("SELECT id,name,lang,text FROM answers WHERE q_id=?", (qq["id"],)).fetchall()
+                    d = dict(qq); d["answers"] = [dict(a) for a in ans]; out.append(d)
                 c.close(); self._j(out); return
             # ---- Community moderation ----
             if p.path == "/api/admin/community":
+                aorg = qs.get("org", [""])[0]
                 c = db()
-                bud = c.execute("SELECT id,name,school,city_id,arrive,note,status FROM buddies ORDER BY id DESC").fetchall()
-                pos = c.execute("SELECT id,name,kind,city_id,title,body,status FROM posts ORDER BY id DESC").fetchall()
+                bsql = "SELECT id,name,school,city_id,arrive,note,status FROM buddies"
+                psql = "SELECT id,name,kind,city_id,title,body,status FROM posts"
+                bparams = []; pparams = []
+                if aorg:
+                    bsql += " WHERE org_id=?"; bparams.append(aorg)
+                    psql += " WHERE org_id=?"; pparams.append(aorg)
+                bud = c.execute(bsql + " ORDER BY id DESC", bparams).fetchall()
+                pos = c.execute(psql + " ORDER BY id DESC", pparams).fetchall()
                 c.close()
                 self._j({"buddies": [dict(r) for r in bud], "posts": [dict(r) for r in pos]}); return
             self._j({"error": "unknown_admin"}); return
@@ -1249,9 +1294,9 @@ class H(http.server.BaseHTTPRequestHandler):
         # ---- White-label org branding (public, no auth) ----
         if p.path.startswith("/api/org/"):
             slug = p.path[len("/api/org/"):].split("?")[0]
-            c = db(); o = c.execute("SELECT name,slug,theme,logo_url FROM orgs WHERE slug=?", (slug,)).fetchone(); c.close()
+            c = db(); o = c.execute("SELECT id,name,slug,theme,logo_url FROM orgs WHERE slug=?", (slug,)).fetchone(); c.close()
             if not o: self._j({"error": "no_org"}); return
-            self._j({"name": o["name"], "slug": o["slug"], "theme": o["theme"], "logo_url": o["logo_url"]}); return
+            self._j({"id": o["id"], "name": o["name"], "slug": o["slug"], "theme": o["theme"], "logo_url": o["logo_url"]}); return
         self._j({"error": "unknown"})
 
     def do_POST(self):
@@ -1350,11 +1395,12 @@ class H(http.server.BaseHTTPRequestHandler):
             is_email = "@" in email and "." in email.split("@")[-1]
             if (not (is_phone or is_email)) or len(pw) < 6:
                 self._j({"error": "invalid"}); return
+            org_id = b.get("org_id") or None
             def _reg(c):
                 if c.execute("SELECT 1 FROM users WHERE email=?", (email,)).fetchone():
                     return "exists"
                 uid = "u" + secrets.token_hex(6)
-                c.execute("INSERT INTO users(id,email,password,name,lang) VALUES(?,?,?,?,?)", (uid, email, hash_pw(pw), name, lang))
+                c.execute("INSERT INTO users(id,email,password,name,lang,org_id) VALUES(?,?,?,?,?,?)", (uid, email, hash_pw(pw), name, lang, org_id))
                 c.commit()
                 return uid
             res = with_db(_reg)
@@ -1368,12 +1414,12 @@ class H(http.server.BaseHTTPRequestHandler):
                 self._j({"error": "too_many"}); return
             email = (b.get("email") or "").strip().lower()
             pw = b.get("password") or ""
-            c = db(); u = c.execute("SELECT id,email,name,lang,password,role FROM users WHERE email=?", (email,)).fetchone(); c.close()
+            c = db(); u = c.execute("SELECT id,email,name,lang,password,role,org_id FROM users WHERE email=?", (email,)).fetchone(); c.close()
             if not u or not verify_pw(pw, u["password"]):
                 _login_fail(ip)
                 self._j({"error": "bad"}); return
             _login_ok(ip)
-            resp = {"uid": u["id"], "name": u["name"], "lang": u["lang"], "is_pro": is_pro(u["id"]), "sess": make_sess(u["id"]), "role": u["role"] if "role" in (u.keys()) else "user"}
+            resp = {"uid": u["id"], "name": u["name"], "lang": u["lang"], "is_pro": is_pro(u["id"]), "sess": make_sess(u["id"]), "role": u["role"] if "role" in (u.keys()) else "user", "org_id": u["org_id"] if "org_id" in u.keys() else None}
             if u["email"] == ADMIN_EMAIL:
                 resp["admin_token"] = ADMIN_TOKEN
             if u["role"] in ("mentor", "partner"):
@@ -1395,12 +1441,14 @@ class H(http.server.BaseHTTPRequestHandler):
         if p.path == "/api/question":
             uid = require_uid(b)
             if not uid: self._j({"error": "auth"}); return
-            c = db(); c.execute("INSERT INTO questions(user_id,name,lang,title,body) VALUES(?,?,?,?,?)", (uid, clip(b.get("name", "匿名"), "name"), b.get("lang", "zh"), clip(b.get("title"), "title"), clip(b.get("body", ""), "text"))); c.commit(); c.close()
+            oid = get_org_id(uid)
+            c = db(); c.execute("INSERT INTO questions(user_id,name,lang,title,body,org_id) VALUES(?,?,?,?,?,?)", (uid, clip(b.get("name", "匿名"), "name"), b.get("lang", "zh"), clip(b.get("title"), "title"), clip(b.get("body", ""), "text"), oid)); c.commit(); c.close()
             self._j({"ok": True}); return
         if p.path == "/api/answer":
             uid = require_uid(b)
             if not uid: self._j({"error": "auth"}); return
-            c = db(); c.execute("INSERT INTO answers(q_id,name,lang,text) VALUES(?,?,?,?)", (b["q_id"], clip(b.get("name", "匿名"), "name"), b.get("lang", "zh"), clip(b.get("text", ""), "text"))); c.commit(); c.close()
+            oid = get_org_id(uid)
+            c = db(); c.execute("INSERT INTO answers(q_id,name,lang,text,org_id) VALUES(?,?,?,?,?)", (b["q_id"], clip(b.get("name", "匿名"), "name"), b.get("lang", "zh"), clip(b.get("text", ""), "text"), oid)); c.commit(); c.close()
             self._j({"ok": True}); return
         if p.path == "/api/product_click":
             uid = require_uid(b)
@@ -1555,9 +1603,10 @@ class H(http.server.BaseHTTPRequestHandler):
             if _rate_blocked("ugc:" + ip, 8, 300):
                 self._j({"error": "too_many"}); return
             c = db()
-            c.execute("INSERT INTO buddies(user_id,name,school,city_id,arrive,wechat,note,status) VALUES(?,?,?,?,?,?,?,'pending')",
+            oid = get_org_id(uid)
+            c.execute("INSERT INTO buddies(user_id,name,school,city_id,arrive,wechat,note,status,org_id) VALUES(?,?,?,?,?,?,?,?,?)",
                       (uid, clip(b.get("name"), "name"), clip(b.get("school"), "school"),
-                       int(b.get("city_id") or 0), clip(b.get("arrive"), "note"), clip(b.get("wechat"), "wechat"), clip(b.get("note"), "note")))
+                       int(b.get("city_id") or 0), clip(b.get("arrive"), "note"), clip(b.get("wechat"), "wechat"), clip(b.get("note"), "note"), "pending", oid))
             c.commit(); c.close()
             self._j({"ok": True, "pending": True}); return
         if p.path == "/api/post_add":
@@ -1567,9 +1616,10 @@ class H(http.server.BaseHTTPRequestHandler):
             if _rate_blocked("ugc:" + ip, 8, 300):
                 self._j({"error": "too_many"}); return
             c = db()
-            c.execute("INSERT INTO posts(user_id,name,kind,city_id,title,body,contact,status) VALUES(?,?,?,?,?,?,?,'pending')",
+            oid = get_org_id(uid)
+            c.execute("INSERT INTO posts(user_id,name,kind,city_id,title,body,contact,status,org_id) VALUES(?,?,?,?,?,?,?,?,?)",
                       (uid, clip(b.get("name"), "name"), (b.get("kind") or "info"), int(b.get("city_id") or 0),
-                       clip(b.get("title"), "title"), clip(b.get("body"), "body"), clip(b.get("contact"), "contact")))
+                       clip(b.get("title"), "title"), clip(b.get("body"), "body"), clip(b.get("contact"), "contact"), "pending", oid))
             c.commit(); c.close()
             self._j({"ok": True, "pending": True}); return
         # ---- Admin console POST (gated: only ADMIN_EMAIL) ----

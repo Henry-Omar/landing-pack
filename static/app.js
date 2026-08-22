@@ -224,6 +224,8 @@ async function applyOrgBranding() {
     const t = JSON.parse(j.theme || "{}");
     if (t.primary) document.documentElement.style.setProperty("--brand", t.primary);
   } catch (e) {}
+  // Phase B2: remember this tenant's org id so register/login tag the account into it
+  if (j.id) localStorage.setItem("lp_org", String(j.id));
 }
 function setLang(l) {
   lang = l;
@@ -470,7 +472,9 @@ $("#authForm").onsubmit = async (e) => {
   const isEmail = email.includes("@") && email.includes(".");
   if (!isPhone && !isEmail) { msg.className = "msg err"; msg.textContent = lang === "zh" ? "手机号或邮箱格式不正确" : "Enter a valid phone or email"; return; }
   const url = authMode === "login" ? "/api/login" : "/api/register";
+  const orgId = localStorage.getItem("lp_org");
   const body = authMode === "login" ? { email, password: pw } : { email, password: pw, name, lang };
+  if (orgId) body.org_id = +orgId;
   const r = await (await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) })).json();
   if (r.error === "exists") { msg.className = "msg err"; msg.textContent = lang === "zh" ? "该邮箱已注册，请登录" : "Email already registered"; return; }
   if (r.error === "bad") { msg.className = "msg err"; msg.textContent = lang === "zh" ? "邮箱或密码错误" : "Wrong email or password"; return; }
@@ -482,6 +486,7 @@ $("#authForm").onsubmit = async (e) => {
   if ("admin_token" in r) localStorage.setItem("lp_admin", r.admin_token); else localStorage.removeItem("lp_admin");
   if ("role" in r) localStorage.setItem("lp_role", r.role); else localStorage.removeItem("lp_role");
   if ("vendor_token" in r) localStorage.setItem("lp_vtok", r.vendor_token); else localStorage.removeItem("lp_vtok");
+  if ("org_id" in r) localStorage.setItem("lp_org", String(r.org_id));
   enterApp();
 };
 $("#logoutBtn").onclick = () => {

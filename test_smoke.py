@@ -154,6 +154,31 @@ check("org branding public ok", s2 == 200 and jget(b2, "name") == "Shanghai Univ
 s2, b2 = call("/api/org/does-not-exist-zzz")
 check("org branding unknown rejected", s2 == 200 and jget(b2, "error") == "no_org", f"status={s2}")
 
+# 15. PHASE B2 — multi-tenant data isolation
+# Use the org's admin sub-account (guaranteed valid sess + org_id) to exercise scoping.
+_oa_email = _slug + "@landingpackapp.com"
+s2, b2 = call("/api/login", "POST", {"email": _oa_email, "password": "org1234"})
+check("org-admin login ok", s2 == 200 and jget(b2, "org_id") is not None, f"status={s2} body={b2[:120]}")
+_org_id = jget(b2, "org_id")
+_oa_uid = jget(b2, "uid")
+_oa_sess = jget(b2, "sess")
+# org-admin posts a question -> must be scoped to _org_id
+_secret_q = "SECRET_ORG_Q_" + str(int(__import__("time").time()))
+s2, b2 = call("/api/question", "POST", {"uid": _oa_uid, "sess": _oa_sess, "name": "OrgAdmin", "lang": "zh", "title": _secret_q, "body": "only org sees"})
+check("org question posted", s2 == 200 and jget(b2, "ok") is True, f"status={s2}")
+# platform user querying questions must NOT see the org-scoped question
+s2, b2 = call(f"/api/questions?lang=zh")
+_plat_titles = [q.get("title", "") for q in b2] if isinstance(b2, list) else []
+check("platform user CANNOT see org content", s2 == 200 and not any(t.startswith("SECRET_ORG_Q_") for t in _plat_titles), f"status={s2} leaked={[t for t in _plat_titles if t.startswith('SECRET_ORG_Q_')]}")
+# org-scoped user (org-admin) querying questions as a normal user MUST see their own org content
+s2, b2 = call(f"/api/questions?uid={_oa_uid}&lang=zh")
+_oa_titles = [q.get("title", "") for q in b2] if isinstance(b2, list) else []
+check("org admin CAN see own org content", s2 == 200 and any(t.startswith("SECRET_ORG_Q_") for t in _oa_titles), f"status={s2} sees={[t for t in _oa_titles if t.startswith('SECRET_ORG_Q_')]}")
+# admin QA view for a DIFFERENT org (org=0) must NOT show it
+s2, b2 = call(f"/api/admin/qa?admin_token={_admin_tok}&uid={_admin_uid}&org=0")
+_other_titles = [q.get("title", "") for q in b2] if isinstance(b2, list) else []
+check("other org CANNOT see content", s2 == 200 and not any(t.startswith("SECRET_ORG_Q_") for t in _other_titles), f"status={s2} leaked={[t for t in _other_titles if t.startswith('SECRET_ORG_Q_')]}")
+
 failed = [n for n, c, _ in results if not c]
 print("\n%d/%d passed" % (len(results) - len(failed), len(results)))
 sys.exit(1 if failed else 0)
